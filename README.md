@@ -1,1 +1,1 @@
-# convolutional-gat
+# Convolutional GAT
