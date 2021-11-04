@@ -16,7 +16,7 @@ To deactivate the environment, run:
 conda deactivate
 ```
 
-To export an environment (if you want to for example installed some new packages, run:
+To export an environment (if you want to for example installed some new packages), run:
 ```
 conda export > conda_environment.yml
 ```
