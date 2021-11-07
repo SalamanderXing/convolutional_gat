@@ -1,6 +1,9 @@
 # Convolutional GAT
 
+## TODOs
 
+- [ ] fix preprocessing
+- [ ] 
 ## Creating the conda environment
 Make sure you have conda properly installed, then run:
 ```
