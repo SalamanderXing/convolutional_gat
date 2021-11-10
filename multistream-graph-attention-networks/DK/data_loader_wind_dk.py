@@ -11,7 +11,7 @@ def get_train_valid_loader(dataset_path):
 
     x_mat = mat["Xtr"]
     y_mat = mat["Ytr"]
- 
+
     x = torch.tensor(x_mat).permute(0, 3, 2, 1).double()
     y = torch.tensor(y_mat).double()
 
@@ -32,6 +32,7 @@ def get_train_valid_loader(dataset_path):
     valid_loader = DataLoader(train_val_dataset, batch_size=64, sampler=valid_sampler)
 
     return train_loader, valid_loader
+
 
 def get_test_loader(dataset_path):
     mat = loadmat(dataset_path)

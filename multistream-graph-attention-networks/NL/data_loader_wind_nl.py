@@ -5,7 +5,12 @@ from dataset_wind_nl import dataset_wind_nl
 
 
 def get_train_valid_loader(dataset_path, inputTimesteps, predictTimestep):
-    train_val_dataset = dataset_wind_nl(dataset_path=dataset_path, inputTimesteps=inputTimesteps, predictTimestep=predictTimestep, train=True)
+    train_val_dataset = dataset_wind_nl(
+        dataset_path=dataset_path,
+        inputTimesteps=inputTimesteps,
+        predictTimestep=predictTimestep,
+        train=True,
+    )
 
     num_train = len(train_val_dataset)
     indices = list(range(num_train))
@@ -26,7 +31,10 @@ def get_train_valid_loader(dataset_path, inputTimesteps, predictTimestep):
 
 def get_test_loader(dataset_path, inputTimesteps, predictTimestep):
     test_dataset = dataset_wind_nl(
-        dataset_path=dataset_path, inputTimesteps=inputTimesteps, predictTimestep=predictTimestep, train=False	
+        dataset_path=dataset_path,
+        inputTimesteps=inputTimesteps,
+        predictTimestep=predictTimestep,
+        train=False,
     )
 
     data_loader = DataLoader(test_dataset, batch_size=64)

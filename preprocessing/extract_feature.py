@@ -10,8 +10,7 @@ from tqdm import tqdm
 
 def listdir(path: str):
     return [
-        (subpath, os.path.join(path, subpath))
-        for subpath in sorted(os.listdir(path))
+        (subpath, os.path.join(path, subpath)) for subpath in sorted(os.listdir(path))
     ]
 
 
@@ -75,9 +74,7 @@ def preprocess(
                         # kdir(out_variable_path)
                         max_count = 86
                         count = 0
-                        for rel_file_path, file_path in listdir(
-                            in_variable_path
-                        ):
+                        for rel_file_path, file_path in listdir(in_variable_path):
                             # ipdb.set_trace()
                             if count == max_count:
                                 break
@@ -85,16 +82,12 @@ def preprocess(
                             data = np.array(file_content[variable_name][:])
                             tensor_data = t.from_numpy(data)
                             region_accumulator[
-                                select_variables.index(
-                                    [variable_folder, variable_name]
-                                )
+                                select_variables.index([variable_folder, variable_name])
                             ].append(tensor_data)
                             count += 1
 
             tensorized_accumulator = (
-                nested_tensor_list_to_tensor(accumulator)
-                .transpose(1, 2)
-                .contiguous()
+                nested_tensor_list_to_tensor(accumulator).transpose(1, 2).contiguous()
             )
             file_name = os.path.join(out_condition_path, f"{day_idx}.pt")
             t.save(tensorized_accumulator, file_name)
@@ -114,9 +107,7 @@ def preprocess_old(
         out_region_path = os.path.join(out_path, rel_region_path)
         mkdir(out_region_path)
         log(f"Converting region {rel_region_path}")
-        for rel_settings, setting in listdir(
-            region_path
-        ):  # train, test, validation
+        for rel_settings, setting in listdir(region_path):  # train, test, validation
             out_settings = os.path.join(out_region_path, rel_settings)
             mkdir(out_settings)
             for rel_day, day in sorted(

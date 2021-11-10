@@ -12,7 +12,12 @@ from data_loader_wind_dk import *
 import argparse
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-dp", "--dataset_path", required=True, help="path to the .mat dataset, e.g. 'data/step1.mat'")
+ap.add_argument(
+    "-dp",
+    "--dataset_path",
+    required=True,
+    help="path to the .mat dataset, e.g. 'data/step1.mat'",
+)
 ap.add_argument("-e", "--epochs", type=int, default=50, help="Number of epochs")
 args = vars(ap.parse_args())
 
@@ -26,7 +31,7 @@ dev = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu
 print(dev)
 
 # from scale1.mat (and from scale2.mat, scale3.mat, scale4.mat) - WIND SPEED
-scaler_max = torch.tensor([28.3, 62.52179487, 25.]).to(dev)
+scaler_max = torch.tensor([28.3, 62.52179487, 25.0]).to(dev)
 scaler_min = torch.tensor([0, 0, 0]).to(dev)
 
 model = Model()
@@ -42,7 +47,15 @@ opt = optim.Adam(model.parameters())
 best_mean_valid_loss = 1e4
 
 now = datetime.now()
-date_time_string = str(now.year) + str(now.month).zfill(2) + str(now.day).zfill(2) + "_" + str(now.hour + 2).zfill(2) + str(now.minute).zfill(2) + str(now.second).zfill(2)
+date_time_string = (
+    str(now.year)
+    + str(now.month).zfill(2)
+    + str(now.day).zfill(2)
+    + "_"
+    + str(now.hour + 2).zfill(2)
+    + str(now.minute).zfill(2)
+    + str(now.second).zfill(2)
+)
 
 print("Date time string: ", date_time_string)
 
@@ -60,28 +73,37 @@ for epoch in range(epochs):
     with torch.no_grad():
         valid_loss = 0.0
         valid_num = 0
-        
+
         for xb, yb in valid_dl:
-            batch_valid_loss = loss_func(model(xb.to(dev)), yb.to(dev), reduction='none')
+            batch_valid_loss = loss_func(
+                model(xb.to(dev)), yb.to(dev), reduction="none"
+            )
             valid_loss += torch.sum(batch_valid_loss, dim=0)
             valid_num += len(xb)
 
-        valid_loss /= valid_num # average of all samples
-        mean_valid_loss = torch.mean(valid_loss) # average of all outputs
+        valid_loss /= valid_num  # average of all samples
+        mean_valid_loss = torch.mean(valid_loss)  # average of all outputs
 
         if mean_valid_loss < best_mean_valid_loss:
-            torch.save(model.state_dict(), "trained_models/best_model_dk_" + date_time_string + ".pt")
-            print("---Model with the following mean valid loss saved: ", mean_valid_loss.item())
+            torch.save(
+                model.state_dict(),
+                "trained_models/best_model_dk_" + date_time_string + ".pt",
+            )
+            print(
+                "---Model with the following mean valid loss saved: ",
+                mean_valid_loss.item(),
+            )
             best_mean_valid_loss = mean_valid_loss
-
 
         print(epoch, mean_valid_loss)
 
 # # # # # # # # # #
 
 best_model = Model()
-best_model = best_model.double().to(dev) 
-best_model.load_state_dict(torch.load("trained_models/best_model_dk_" + date_time_string + ".pt"))
+best_model = best_model.double().to(dev)
+best_model.load_state_dict(
+    torch.load("trained_models/best_model_dk_" + date_time_string + ".pt")
+)
 
 test_dl = get_test_loader(dataset_path)
 
@@ -90,23 +112,23 @@ with torch.no_grad():
     test_loss = 0.0
     test_loss_2 = 0.0
     test_num = 0
-    
+
     for xb, yb in test_dl:
         pred = best_model(xb.to(dev))
         pred_unscaled = pred * (scaler_max - scaler_min) + scaler_min
         yb_unscaled = yb.to(dev) * (scaler_max - scaler_min) + scaler_min
 
-        batch_test_loss = loss_func(pred_unscaled, yb_unscaled, reduction='none')
-        batch_test_loss_2 = loss_func_2(pred_unscaled, yb_unscaled, reduction='none')
+        batch_test_loss = loss_func(pred_unscaled, yb_unscaled, reduction="none")
+        batch_test_loss_2 = loss_func_2(pred_unscaled, yb_unscaled, reduction="none")
 
         test_loss += torch.sum(batch_test_loss, dim=0)
         test_loss_2 += torch.sum(batch_test_loss_2, dim=0)
         test_num += len(xb)
 
-test_loss /= test_num # average of all samples
+test_loss /= test_num  # average of all samples
 print("\nTest MAE loss of the model:", test_loss)
 print("Average:", torch.mean(test_loss), "\n")
 
-test_loss_2 /= test_num # average of all samples
+test_loss_2 /= test_num  # average of all samples
 print("Test MSE loss of the model:", test_loss_2)
 print("Average:", torch.mean(test_loss_2), "\n")
