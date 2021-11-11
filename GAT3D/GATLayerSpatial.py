@@ -14,7 +14,7 @@ class GATLayerSpatial(nn.Module):
         alpha,
         concat=True,
     ):
-        super(GATLayerSpatial, self).__init__()
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha

@@ -7,8 +7,10 @@ torch.manual_seed(42)
 
 
 class GATLayerTemporal(nn.Module):
-    def __init__(self, image_size, in_features, out_features, alpha, concat=True):
-        super(GATLayerTemporal, self).__init__()
+    def __init__(
+        self, image_size, in_features, out_features, alpha, concat=True
+    ):
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
@@ -50,9 +52,9 @@ class GATLayerTemporal(nn.Module):
             at = torch.zeros(height, width, self.out_features)
             for j in range(nodes):
                 # print('====', Wh[j, :, :, :].shape, attention[i, j, :].unsqueeze(0).unsqueeze(0).repeat((height, width, 1)).shape)
-                at += Wh[j, :, :, :] * attention[i, j, :].unsqueeze(0).unsqueeze(
+                at += Wh[j, :, :, :] * attention[i, j, :].unsqueeze(
                     0
-                ).repeat((height, width, 1))
+                ).unsqueeze(0).repeat((height, width, 1))
             Wh_.append(at)
 
         h_prime = torch.stack((Wh_))
