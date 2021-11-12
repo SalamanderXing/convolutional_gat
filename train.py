@@ -1,9 +1,13 @@
 import torch as t
 import torch.nn as nn
 from tqdm import tqdm
+import ipdb
 from argparse import ArgumentParser
 from .data_loader import get_loaders
 from .model import ConvGAT
+
+
+# todo: add that it saves the best performing model
 
 
 def plot_history(history):
@@ -17,7 +21,6 @@ def test(model, device, val_test_set):
         total_length = 0
         for data in tqdm(val_test_set):
             inputs, _ = data
-
             inputs = inputs.to(device)
             outputs = model(inputs)
             running_loss += t.sum((inputs - outputs) ** 2).item()

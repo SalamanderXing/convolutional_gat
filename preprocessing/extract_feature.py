@@ -108,7 +108,7 @@ def preprocess(
                 nested_tensor_list_to_tensor(accumulator)
                 .transpose(1, 2)
                 .contiguous()
-            )
+            ).flatten(0, 1)
             cur_min_val = (
                 t.min(tensorized_accumulator)
                 if t.sum(tensorized_accumulator) != 0.0
