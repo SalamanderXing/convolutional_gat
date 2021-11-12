@@ -1,7 +1,13 @@
 import torch as t
 import torch.nn as nn
 from tqdm import tqdm
-from .data_loaders import get_loaders
+from argparse import ArgumentParser
+from .data_loader import get_loaders
+from .model import ConvGAT
+
+
+def plot_history(history):
+    pass
 
 
 def test(model, device, val_test_set):
@@ -21,30 +27,37 @@ def test(model, device, val_test_set):
 
 
 def train(
-    model_class=ConvAEUnpool,
-    train_batch_size=64,
-    test_batch_size=200,
+    model_class=ConvGAT,
+    train_batch_size=32,
+    test_batch_size=100,
     epochs=10,
     lr=0.001,
     lr_step=1,
     gamma=1.0,  # 1.0 means disabled
     plot=True,
 ):
-    train_loader, val_loader, test_loader = get_loaders(
-        train_batch_size, test_batch_size
-    )
-    print(f"Len train set: {len(train_loader)}")
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
     )  # Select the GPU device, if there is one available.
-    # device = t.device('cpu')
+    #
+    train_loader, val_loader, test_loader = get_loaders(
+        train_batch_size=train_batch_size,
+        test_batch_size=test_batch_size,
+        preprocessed_folder="convolutional-gat/preprocessed",
+        device=device,
+    )
+    print(
+        f"Sizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+    )
     print(device)
     model = model_class().to(device)  # The model always stays on the GPU
     # optimizer = the procedure for updating the weights of our neural network
     optimizer = t.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     history = []
     for epoch in range(epochs):
         model.train()
@@ -62,7 +75,9 @@ def train(
             inputs = inputs.to(
                 device
             )  # We move the tensors to the GPU for (much) faster computation
-            outputs = model(inputs)  # Implicitly calls the model's forward function
+            outputs = model(
+                inputs
+            )  # Implicitly calls the model's forward function
             loss = criterion(outputs, inputs)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
@@ -79,5 +94,9 @@ def train(
     print(f"Test loss: {round(test_loss, 6)}")
     if plot:
         plot_history(history)
-        plot_reconstruction(model, device, test_loader)
     return history, test_loss
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    train()
