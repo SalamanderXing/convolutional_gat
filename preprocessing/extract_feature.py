@@ -10,8 +10,7 @@ from tqdm import tqdm
 
 def listdir(path: str):
     return [
-        (subpath, os.path.join(path, subpath))
-        for subpath in sorted(os.listdir(path))
+        (subpath, os.path.join(path, subpath)) for subpath in sorted(os.listdir(path))
     ]
 
 
@@ -36,17 +35,27 @@ def fix_sizes(tensors: list[t.Tensor]):
     return t.stack()
 """
 
-def fix_sizes(to_fix:list[t.Tensor]):
+
+def fix_sizes(to_fix: list[t.Tensor]):
     min_size = min(f.shape[1] for f in to_fix)
     return [tensor[:, :min_size, :, :] for tensor in to_fix]
+
 
 def nested_tensor_list_to_tensor(nested) -> t.Tensor:
     if len(nested) == 0:
         return t.tensor([])
     if type(nested[0]) in (list, tuple):
         flattened = [nested_tensor_list_to_tensor(n) for n in nested]
-        flattened = [f for f in flattened if len(f.shape) > 1  and f.shape[1] > 0]
-        return (t.stack(fix_sizes(flattened)) if len(flattened[0].shape) == 4 else t.stack(flattened)) if len(flattened) > 0 else t.tensor([])
+        flattened = [f for f in flattened if len(f.shape) > 1 and f.shape[1] > 0]
+        return (
+            (
+                t.stack(fix_sizes(flattened))
+                if len(flattened[0].shape) == 4
+                else t.stack(flattened)
+            )
+            if len(flattened) > 0
+            else t.tensor([])
+        )
     else:
         return t.stack(nested)
 
@@ -88,9 +97,7 @@ def preprocess(
                         # kdir(out_variable_path)
                         max_count = 86
                         count = 0
-                        for rel_file_path, file_path in listdir(
-                            in_variable_path
-                        ):
+                        for rel_file_path, file_path in listdir(in_variable_path):
                             # ipdb.set_trace()
                             if count == max_count:
                                 break
@@ -98,16 +105,12 @@ def preprocess(
                             data = np.array(file_content[variable_name][:])
                             tensor_data = t.from_numpy(data)
                             region_accumulator[
-                                select_variables.index(
-                                    [variable_folder, variable_name]
-                                )
+                                select_variables.index([variable_folder, variable_name])
                             ].append(tensor_data)
                             count += 1
 
             tensorized_accumulator = (
-                nested_tensor_list_to_tensor(accumulator)
-                .transpose(1, 2)
-                .contiguous()
+                nested_tensor_list_to_tensor(accumulator).transpose(1, 2).contiguous()
             ).flatten(0, 1)
             cur_min_val = (
                 t.min(tensorized_accumulator)
@@ -124,7 +127,7 @@ def preprocess(
             file_name = os.path.join(out_condition_path, f"{day_idx}.pt")
             t.save(tensorized_accumulator, file_name)
             summary[condition] = {"min": float(min_val), "max": float(max_val)}
-        print(f'Done {condition}')
-    print('Writing summary')
+        print(f"Done {condition}")
+    print("Writing summary")
     with open(os.path.join(out_path, "metadata.json"), "w") as f:
         json.dump(summary, f)

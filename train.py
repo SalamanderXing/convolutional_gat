@@ -50,9 +50,8 @@ def train(
         device=device,
     )
     print(
-        f"Sizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+        f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
     )
-    print(device)
     model = model_class().to(device)  # The model always stays on the GPU
     # optimizer = the procedure for updating the weights of our neural network
     optimizer = t.optim.Adam(model.parameters(), lr=lr)
