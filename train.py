@@ -4,22 +4,26 @@ from tqdm import tqdm
 import ipdb
 from argparse import ArgumentParser
 from .data_loader import get_loaders
-from .model import ConvGAT
-
-
+from .model import SpatialModel, TemporalModel
+import matplotlib.pyplot as plt
+from .data_loader import Task
 # todo: add that it saves the best performing model
 
 
-def plot_history(history):
-    pass
+def plot_history(history:list[tuple[float, float]], title:str='Training History'):
+    plt.plot(t.arange(len(history)), [h[0] for h in history], label="Train loss")
+    plt.plot(t.arange(len(history)), [h[1] for h in history], label="Val loss")
+    plt.legend()
+    plt.title(title)
+    plt.show()
 
 
-def test(model, device, val_test_set):
+def test(model:nn.Module, device:t.DeviceObjType, val_test_loader):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = 0.0
         total_length = 0
-        for data in tqdm(val_test_set):
+        for data in tqdm(val_test_loader):
             inputs, _ = data
             inputs = inputs.to(device)
             outputs = model(inputs)
@@ -30,11 +34,12 @@ def test(model, device, val_test_set):
 
 
 def train(
-    model_class=ConvGAT,
+    model_class=TemporalModel,
     train_batch_size=32,
     test_batch_size=100,
     epochs=10,
     lr=0.001,
+    task=Task.predict_next,
     lr_step=1,
     gamma=1.0,  # 1.0 means disabled
     plot=True,
@@ -48,6 +53,7 @@ def train(
         test_batch_size=test_batch_size,
         preprocessed_folder="convolutional-gat/preprocessed",
         device=device,
+        task=task
     )
     print(
         f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
@@ -66,21 +72,19 @@ def train(
         total_length = 0
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
-        for data in tqdm(train_loader):
-            inputs, _ = data
+        for current_time_step, next_time_step in tqdm(train_loader):
+            current_time_step = current_time_step.squeeze(2)
+            next_time_step = next_time_step.squeeze(2)
             # reset the gradients back to zero
             # PyTorch accumulates gradients on subsequent backward passes
             optimizer.zero_grad()
 
-            inputs = inputs.to(
-                device
-            )  # We move the tensors to the GPU for (much) faster computation
-            outputs = model(inputs)  # Implicitly calls the model's forward function
-            loss = criterion(outputs, inputs)
+            predicted_next_time_step = model(current_time_step)  # Implicitly calls the model's forward function
+            loss = criterion(predicted_next_time_step, next_time_step)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
-            total_length += len(inputs)
-            running_loss += t.sum((inputs - outputs) ** 2).item()
+            total_length += len(current_time_step)
+            running_loss += t.sum((predicted_next_time_step - next_time_step) ** 2).item()
 
         scheduler.step()
         train_loss = running_loss / total_length

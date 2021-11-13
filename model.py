@@ -1,6 +1,6 @@
 import torch as t
 import torch.nn as nn
-from GAT3D.GATMultiHead3D import GATMultiHead3D
+from .GAT3D.GATMultiHead3D import GATMultiHead3D
 
 
 class SpatialModel(nn.Module):

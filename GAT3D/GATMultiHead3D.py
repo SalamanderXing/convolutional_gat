@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from GATLayerSpatial import GATLayerSpatial
-from GATLayerTemporal import GATLayerTemporal
+from .GATLayerSpatial import GATLayerSpatial
+from .GATLayerTemporal import GATLayerTemporal
 
 
 class GATMultiHead3D(nn.Module):

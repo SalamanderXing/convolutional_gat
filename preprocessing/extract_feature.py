@@ -74,8 +74,8 @@ def preprocess(
     summary = {}
     conditions = ["training", "validation", "test"]
     for condition in conditions:
-        min_val = -t.tensor(float("Inf"))
-        max_val = t.tensor(float("Inf"))
+        min_val = t.tensor(float("Inf"))
+        max_val = -t.tensor(float("Inf"))
         log(f"Preprocessing {condition}")
         out_condition_path = os.path.join(out_path, condition)
         mkdir(out_condition_path)
@@ -113,7 +113,7 @@ def preprocess(
 
             tensorized_accumulator = (
                 nested_tensor_list_to_tensor(accumulator).transpose(1, 2).contiguous()
-            ).flatten(0, 1)
+            ).transpose(0, 1)
             cur_min_val = (
                 t.min(tensorized_accumulator)
                 if t.sum(tensorized_accumulator) != 0.0

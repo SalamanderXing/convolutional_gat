@@ -7,13 +7,17 @@ from torch.autograd import Variable
 
 class GATLayerSpatial(nn.Module):
     def __init__(self, in_features, out_features, alpha):
-        super(GraphAttentionLayer3D_spatial, self).__init__()
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))  # [4, 4]
+        self.W = nn.Parameter(
+            torch.empty(size=(in_features, out_features))
+        )  # [4, 4]
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))  # [8, 1]
+        self.a = nn.Parameter(
+            torch.empty(size=(2 * out_features, 1))
+        )  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
@@ -39,7 +43,9 @@ class GATLayerSpatial(nn.Module):
         adj_mat_min = torch.min(adj_mat)
         adj_mat_max = torch.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(torch.diag(torch.sum(adj_mat, axis=1)), requires_grad=False)
+        D = Variable(
+            torch.diag(torch.sum(adj_mat, axis=1)), requires_grad=False
+        )
         D_12 = torch.sqrt(torch.inverse(D))
         adj_mat_norm_d12 = torch.matmul(torch.matmul(D_12, adj_mat), D_12)
 
@@ -47,9 +53,9 @@ class GATLayerSpatial(nn.Module):
         for i in range(V):
             at = torch.zeros(N, H, W, self.out_features)
             for j in range(V):
-                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
-                    1, 1, 1, self.out_features
-                )
+                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(
+                    3
+                ).repeat(1, 1, 1, self.out_features)
             Wh_.append(at)
 
         h_prime = torch.stack((Wh_))

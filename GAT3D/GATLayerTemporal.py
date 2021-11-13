@@ -8,7 +8,7 @@ from torch.autograd import Variable
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
     def __init__(self, in_features, out_features, alpha):
-        super(GraphAttentionLayer3D_temporal, self).__init__()
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
