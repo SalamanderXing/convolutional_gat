@@ -9,16 +9,12 @@ class GATMultiHead3D(nn.Module):
         super().__init__()
         if type_ == "spatial":
             self.attentions = [
-                GATLayerSpatial(
-                    in_features=nfeat, out_features=nhid, alpha=alpha
-                )
+                GATLayerSpatial(in_features=nfeat, out_features=nhid, alpha=alpha)
                 for _ in range(nheads)
             ]
         elif type_ == "temporal":
             self.attentions = [
-                GATLayerTemporal(
-                    in_features=nfeat, out_features=nhid, alpha=alpha
-                )
+                GATLayerTemporal(in_features=nfeat, out_features=nhid, alpha=alpha)
                 for _ in range(nheads)
             ]
         else:

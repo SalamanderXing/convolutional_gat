@@ -16,7 +16,7 @@ class DataLoader:
         self.remainder = t.tensor([])
         self.file_index = 0
         self.files = [f for f in os.listdir(folder)]
-        self.item_count = 24*4*max(int(f.split(".")[0]) for f in self.files)
+        self.item_count = 24 * 4 * max(int(f.split(".")[0]) for f in self.files)
         self.device = device
 
     def __len__(self):
@@ -55,14 +55,21 @@ class DataLoader:
 
 
 def get_loaders(
-    train_batch_size: int, test_batch_size: int, preprocessed_folder: str, device,
+    train_batch_size: int,
+    test_batch_size: int,
+    preprocessed_folder: str,
+    device,
 ):
     return (
         DataLoader(
-            train_batch_size, os.path.join(preprocessed_folder, "training"), device,
+            train_batch_size,
+            os.path.join(preprocessed_folder, "training"),
+            device,
         ),
         DataLoader(
-            test_batch_size, os.path.join(preprocessed_folder, "validation"), device,
+            test_batch_size,
+            os.path.join(preprocessed_folder, "validation"),
+            device,
         ),
         DataLoader(test_batch_size, os.path.join(preprocessed_folder, "test"), device),
     )

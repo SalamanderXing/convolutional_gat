@@ -57,9 +57,7 @@ def train(
     optimizer = t.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     history = []
     for epoch in range(epochs):
         model.train()
@@ -77,9 +75,7 @@ def train(
             inputs = inputs.to(
                 device
             )  # We move the tensors to the GPU for (much) faster computation
-            outputs = model(
-                inputs
-            )  # Implicitly calls the model's forward function
+            outputs = model(inputs)  # Implicitly calls the model's forward function
             loss = criterion(outputs, inputs)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters

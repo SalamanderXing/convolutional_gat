@@ -23,7 +23,7 @@ class GATLayerTemporal(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        self.a = nn.Parameter(torch.empty(size=(2*H*W, 1)))
+        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1)))
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
 
         Wh = torch.matmul(h, self.W)
@@ -40,28 +40,21 @@ class GATLayerTemporal(nn.Module):
         adj_mat_min = torch.min(adj_mat)
         adj_mat_max = torch.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(torch.diag(torch.sum(adj_mat, axis=1)),
-                     requires_grad=False)
+        D = Variable(torch.diag(torch.sum(adj_mat, axis=1)), requires_grad=False)
         D_12 = torch.sqrt(torch.inverse(D))
         adj_mat_norm_d12 = torch.matmul(torch.matmul(D_12, adj_mat), D_12)
 
-        Wh = Wh.view(N, V, H*W, T)
+        Wh = Wh.view(N, V, H * W, T)
         attention = torch.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = torch.zeros(N, H*W, T)
+            at = torch.zeros(N, H * W, T)
             for j in range(V):
-                at += torch.matmul(
-                    Wh[:, j, :, :], attention[:, i, j, :, :]
-                )
+                at += torch.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
             Wh_.append(at)
         h_prime = torch.stack((Wh_))
-        h_prime = (
-            h_prime.permute(1, 2, 3, 0).contiguous().view(N, H*W, T, V)
-        )
-        h_prime = torch.matmul(h_prime, adj_mat_norm_d12).view(
-            N, H, W, T, V
-        )
+        h_prime = h_prime.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
+        h_prime = torch.matmul(h_prime, adj_mat_norm_d12).view(N, H, W, T, V)
         return F.elu(h_prime)
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
@@ -71,7 +64,7 @@ class GATLayerTemporal(nn.Module):
         all_combinations_matrix = torch.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-2
         )
-        return all_combinations_matrix.view(B, M, M, T, 2*H*W)
+        return all_combinations_matrix.view(B, M, M, T, 2 * H * W)
 
     def __repr__(self):
         return (

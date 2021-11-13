@@ -64,7 +64,9 @@ def preprocess(
     verbose: bool = True,
     in_path: str = "~/downloads/mai_dataset",
     out_path: str = "./preprocessed",
-    select_variables: list[list[str]] = [["CTTH", "temperature"],],
+    select_variables: list[list[str]] = [
+        ["CTTH", "temperature"],
+    ],
 ):
     if not os.path.exists(out_path):
         os.mkdir(out_path)

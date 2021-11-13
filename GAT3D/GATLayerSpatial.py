@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
+
 class GATLayerSpatial(nn.Module):
     def __init__(self, in_features, out_features, alpha):
         super(GraphAttentionLayer3D_spatial, self).__init__()
@@ -15,11 +16,11 @@ class GATLayerSpatial(nn.Module):
         self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        
+
     def forward(self, h):
         if len(h.size()) == 5:
-            N, H, W, T, V = h.size() 
-            h = h.permute(0, 4, 1, 2, 3) 
+            N, H, W, T, V = h.size()
+            h = h.permute(0, 4, 1, 2, 3)
         else:
             N, V, H, W = h.size()
 
@@ -46,27 +47,31 @@ class GATLayerSpatial(nn.Module):
         for i in range(V):
             at = torch.zeros(N, H, W, self.out_features)
             for j in range(V):
-                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(1, 1, 1, self.out_features)
+                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
+                    1, 1, 1, self.out_features
+                )
             Wh_.append(at)
 
-        h_prime = torch.stack((Wh_))  
         h_prime = torch.stack((Wh_))
-        h_prime = (  
-            h_prime.permute(1, 3, 4, 2, 0).contiguous().view(N, H, W*self.out_features, V)
-        )                     
+        h_prime = torch.stack((Wh_))
+        h_prime = (
+            h_prime.permute(1, 3, 4, 2, 0)
+            .contiguous()
+            .view(N, H, W * self.out_features, V)
+        )
         h_prime = torch.matmul(h_prime, adj_mat_norm_d12).view(
-            N, H, W, self.out_features, V 
-        ) 
+            N, H, W, self.out_features, V
+        )
         return F.elu(h_prime)
 
-    def batch_prepare_attentional_mechanism_input(self, Wh):  
+    def batch_prepare_attentional_mechanism_input(self, Wh):
         B, M, H, W, T = Wh.shape
         Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1) 
+        Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
         all_combinations_matrix = torch.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-1
         )
-        return all_combinations_matrix.view(B, M, M, H,W, 2 * T) 
+        return all_combinations_matrix.view(B, M, M, H, W, 2 * T)
 
     def __repr__(self):
         return (
