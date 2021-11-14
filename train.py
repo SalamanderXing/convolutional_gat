@@ -68,7 +68,7 @@ def train(
     criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
     scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
-    history = {"train_loss": [], "test_loss": []}
+    history = {"train_loss": [], "val_loss": []}
     for epoch in range(epochs):
         model.train()
         print(f"\nEpoch: {epoch + 1}")
@@ -103,7 +103,7 @@ def train(
         val_loss = test(model, device, val_loader)
         print(f"Val loss: {round(val_loss, 6)}")
         history["train_loss"].append(train_loss)
-        history["test_loss"].append(val_loss)
+        history["val_loss"].append(val_loss)
         with open("history.json", "w") as f:
             json.dump(history, f)
         if val_loss < min(history["val_loss"]):
