@@ -2,6 +2,7 @@ import torch as t
 import torch.nn as nn
 from torchinfo import summary
 from tqdm import tqdm
+import json
 import ipdb
 from argparse import ArgumentParser
 from .data_loader import get_loaders
@@ -20,7 +21,7 @@ def plot_history(history:list[tuple[float, float]], title:str='Training History'
     plt.show()
 
 
-def test(model:nn.Module, device:t.DeviceObjType, val_test_loader):
+def test(model:nn.Module, device, val_test_loader):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = 0.0
@@ -67,7 +68,7 @@ def train(
     criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
     scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
-    history = []
+    history = {'train_loss':[],'test_loss':[]}
     for epoch in range(epochs):
         model.train()
         print(f"\nEpoch: {epoch + 1}")
@@ -95,7 +96,12 @@ def train(
         print(f"Train loss: {round(train_loss, 6)}")
         val_loss = test(model, device, val_loader)
         print(f"Val loss: {round(val_loss, 6)}")
-        history.append((train_loss, val_loss))
+        history['train_loss'].append(train_loss)
+        history['test_loss'].append(val_loss)
+        with open('history.json', 'w') as f:
+            json.dump(history, f)
+        if val_loss < min(history['val_loss']):
+            t.save(model.state_dict(), 'model.pt')
     test_loss = test(model, device, test_loader)
     print(f"Test loss: {round(test_loss, 6)}")
     if plot:
