@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn as nn
+from torchinfo import summary
 from tqdm import tqdm
 import ipdb
 from argparse import ArgumentParser
@@ -7,6 +8,7 @@ from .data_loader import get_loaders
 from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
 from .data_loader import Task
+
 # todo: add that it saves the best performing model
 
 
@@ -35,7 +37,7 @@ def test(model:nn.Module, device:t.DeviceObjType, val_test_loader):
 
 def train(
     model_class=TemporalModel,
-    train_batch_size=32,
+    train_batch_size=1,
     test_batch_size=100,
     epochs=10,
     lr=0.001,
@@ -58,7 +60,8 @@ def train(
     print(
         f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
     )
-    model = model_class().to(device)  # The model always stays on the GPU
+    model = model_class().to(device)
+    summary(model, input_size=(12, 256, 256, 4, 5), device=device)
     # optimizer = the procedure for updating the weights of our neural network
     optimizer = t.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
@@ -73,12 +76,13 @@ def train(
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
         for current_time_step, next_time_step in tqdm(train_loader):
-            current_time_step = current_time_step.squeeze(2)
-            next_time_step = next_time_step.squeeze(2)
-            # reset the gradients back to zero
-            # PyTorch accumulates gradients on subsequent backward passes
+            # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            current_time_step = current_time_step.squeeze(3) # we only have one feature for now
+            next_time_step = next_time_step.squeeze(3) # same
+            current_time_step = current_time_step.permute(0, 3, 4, 1, 2)
+            next_time_step = next_time_step.permute(0, 3, 4, 1, 2)
+            ipdb.set_trace()
             optimizer.zero_grad()
-
             predicted_next_time_step = model(current_time_step)  # Implicitly calls the model's forward function
             loss = criterion(predicted_next_time_step, next_time_step)
             loss.backward()  # Update the gradients

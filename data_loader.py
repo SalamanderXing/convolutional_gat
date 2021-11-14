@@ -21,14 +21,22 @@ class DataLoader:
         folder: str,
         device,
         task: Task = Task.predict_next,
+        time_steps: int = 4,
         norm_max=None,
         norm_min=None,
     ):
         self.foder = folder
         self.task = task
+        self.device = device
+        self.__is_first = True
+        self.norm_max = norm_max
+        self.norm_min = norm_min
+
+        self.time_steps = time_steps
         self.__batch_size = batch_size
         if self.task == task.predict_next:
-            self.__batch_size += 1  # taken into account the time step of 1
+            self.__batch_size *= 2  # taken into account the time step of 1
+            self.__batch_size += self.time_steps - 1
         self.__next_batch = t.tensor([])
         self.__remainder = t.tensor([])
         self.file_index = 0
@@ -36,16 +44,21 @@ class DataLoader:
         self.item_count = (
             24 * 4 * max(int(f.split(".")[0]) for f in self.files)
         )
-        self.device = device
-        self.__is_first = True
-        self.norm_max = norm_max
-        self.norm_min = norm_min
 
     def __batchify(self, data) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
         if self.task == Task.predict_next:
-            result = (data[:-1], data[1:])
-        return (result[0].to(self.device), result[1].to(self.device))
+            shifted = t.stack(
+                tuple(
+                    data[i : i + self.time_steps]
+                    for i in range(len(data) - (self.time_steps - 1))
+                )
+            )
+            even_mask = t.arange(len(shifted)) % 2 == 0
+            labels = shifted[even_mask]
+            xs = shifted[t.logical_not(even_mask)]
+            result = (xs, labels)
+        return (result[0].to(self.device), result[0].to(self.device))
 
     def __len__(self):
         return int(np.ceil(self.item_count / self.__batch_size))

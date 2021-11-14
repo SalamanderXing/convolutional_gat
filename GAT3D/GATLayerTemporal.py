@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+import ipdb
 
 
 class GATLayerTemporal(nn.Module):
@@ -23,9 +24,8 @@ class GATLayerTemporal(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1)))
+        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(self.W.device) # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
-
         Wh = torch.matmul(h, self.W)
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = torch.matmul(a_input, self.a)
@@ -34,8 +34,8 @@ class GATLayerTemporal(nn.Module):
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.B = nn.Parameter(torch.zeros(V, V) + 1e-6)
-        self.A = Variable(torch.eye(V), requires_grad=False)
+        self.B = nn.Parameter(torch.zeros(V, V) + 1e-6).to(self.W.device)
+        self.A = Variable(torch.eye(V), requires_grad=False).to(self.W.device)
         adj_mat = self.B[:, :] + self.A[:, :]
         adj_mat_min = torch.min(adj_mat)
         adj_mat_max = torch.max(adj_mat)
@@ -44,11 +44,11 @@ class GATLayerTemporal(nn.Module):
         D_12 = torch.sqrt(torch.inverse(D))
         adj_mat_norm_d12 = torch.matmul(torch.matmul(D_12, adj_mat), D_12)
 
-        Wh = Wh.view(N, V, H * W, T)
+        Wh = Wh.view(N, V, H * W, T) # Warning, T might be undefined
         attention = torch.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = torch.zeros(N, H * W, T)
+            at = torch.zeros(N, H * W, T).to(self.W.device) # added by Giulio
             for j in range(V):
                 at += torch.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
             Wh_.append(at)

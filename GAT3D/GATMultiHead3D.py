@@ -25,5 +25,5 @@ class GATMultiHead3D(nn.Module):
 
     def forward(self, x):
         # N, H, W, T, V = x.size()
-        x = torch.cat([att(x) for att in self.attentions], dim=2)
+        x = torch.cat(tuple(att(x) for att in self.attentions), dim=2)
         return x
