@@ -20,7 +20,7 @@ class SpatialModel(nn.Module):
 
 
 class TemporalModel(nn.Module):
-    def __init__(self, time_steps:int=4):
+    def __init__(self, time_steps: int = 4):
         super().__init__()
         self.hidden_layer = GATMultiHead3D(
             nfeat=time_steps, nhid=time_steps, alpha=0.2, nheads=1, type_="temporal"

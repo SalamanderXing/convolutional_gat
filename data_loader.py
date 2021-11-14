@@ -41,9 +41,7 @@ class DataLoader:
         self.__remainder = t.tensor([])
         self.file_index = 0
         self.files = [f for f in os.listdir(folder)]
-        self.item_count = (
-            24 * 4 * max(int(f.split(".")[0]) for f in self.files)
-        )
+        self.item_count = 24 * 4 * max(int(f.split(".")[0]) for f in self.files)
 
     def __batchify(self, data) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
@@ -80,9 +78,7 @@ class DataLoader:
     def __read_next_file(self):
         if self.file_index == len(self.files):
             raise StopIteration
-        tensor = t.load(
-            os.path.join(self.foder, f"{self.files[self.file_index]}")
-        )
+        tensor = t.load(os.path.join(self.foder, f"{self.files[self.file_index]}"))
         self.file_index += 1
         return tensor
 
@@ -93,9 +89,7 @@ class DataLoader:
             next_batch = self.__read_next_file()
             new_data = next_batch[:to_be_gained]
             accumulator = (
-                new_data
-                if len(accumulator) == 0
-                else t.cat((accumulator, new_data))
+                new_data if len(accumulator) == 0 else t.cat((accumulator, new_data))
             )
             self.__remainder = next_batch[to_be_gained:]
         self.__next_batch = accumulator
@@ -122,10 +116,7 @@ def get_loaders(
             task,
         ),
         DataLoader(
-            test_batch_size,
-            os.path.join(preprocessed_folder, "test"),
-            device,
-            task,
+            test_batch_size, os.path.join(preprocessed_folder, "test"), device, task,
         ),
     )
 

@@ -24,7 +24,9 @@ class GATLayerTemporal(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(self.W.device) # added by Giulio
+        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(
+            self.W.device
+        )  # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         Wh = torch.matmul(h, self.W)
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
@@ -44,11 +46,11 @@ class GATLayerTemporal(nn.Module):
         D_12 = torch.sqrt(torch.inverse(D))
         adj_mat_norm_d12 = torch.matmul(torch.matmul(D_12, adj_mat), D_12)
 
-        Wh = Wh.view(N, V, H * W, T) # Warning, T might be undefined
+        Wh = Wh.view(N, V, H * W, T)  # Warning, T might be undefined
         attention = torch.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = torch.zeros(N, H * W, T).to(self.W.device) # added by Giulio
+            at = torch.zeros(N, H * W, T).to(self.W.device)  # added by Giulio
             for j in range(V):
                 at += torch.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
             Wh_.append(at)
