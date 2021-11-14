@@ -36,8 +36,8 @@ def test(model:nn.Module, device:t.DeviceObjType, val_test_loader):
 
 
 def train(
-    model_class=TemporalModel,
     train_batch_size=1,
+    model_class=TemporalModel,
     test_batch_size=100,
     epochs=10,
     lr=0.001,
