@@ -14,8 +14,8 @@ from .data_loader import Task
 
 
 def plot_history(history: dict[str, list[float]], title: str = "Training History"):
-    plt.plot(t.arange(len(history)), history['train_loss'], label="Train loss")
-    plt.plot(t.arange(len(history)), history['val_loss'], label="Val loss")
+    plt.plot(t.arange(len(history)), history["train_loss"], label="Train loss")
+    plt.plot(t.arange(len(history)), history["val_loss"], label="Val loss")
     plt.legend()
     plt.title(title)
     plt.show()
