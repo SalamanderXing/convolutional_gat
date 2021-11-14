@@ -84,7 +84,6 @@ def train(
             next_time_step = next_time_step.squeeze(3)  # same
             current_time_step = current_time_step.permute(0, 3, 4, 1, 2)
             next_time_step = next_time_step.permute(0, 3, 4, 1, 2)
-            ipdb.set_trace()
             optimizer.zero_grad()
             predicted_next_time_step = model(
                 current_time_step
