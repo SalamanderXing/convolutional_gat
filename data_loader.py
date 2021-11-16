@@ -4,6 +4,7 @@ import os
 import numpy as np
 import ipdb
 from enum import Enum, unique
+from tqdm import tqdm
 
 # todo: shuffling
 # todo: fix the fist batch is empty
@@ -20,18 +21,24 @@ class DataLoader:
         batch_size: int,
         folder: str,
         device,
+        *,
         task: Task = Task.predict_next,
         time_steps: int = 4,
         norm_max=None,
         norm_min=None,
+        downsample_size: tuple[int, int] = (
+            256,
+            256,
+        ),  # by default, don't downsample
     ):
-        self.foder = folder
+        self.downsample_size = downsample_size
+        self.folder = folder
         self.task = task
         self.device = device
         self.__is_first = True
         self.norm_max = norm_max
         self.norm_min = norm_min
-
+        self.batch_size = batch_size
         self.time_steps = time_steps
         self.__batch_size = batch_size
         if self.task == task.predict_next:
@@ -40,8 +47,16 @@ class DataLoader:
         self.__next_batch = t.tensor([])
         self.__remainder = t.tensor([])
         self.file_index = 0
-        self.files = [f for f in os.listdir(folder)]
-        self.item_count = 24 * 4 * max(int(f.split(".")[0]) for f in self.files)
+        self.should_stop_iteration = False
+        self.files = sorted(
+            [f for f in os.listdir(folder)], key=lambda x: int(x.split(".")[0])
+        )
+        max_file = max(int(f.split(".")[0]) for f in self.files)
+        print(f"{max_file=}")
+        self.item_count = 86 * len(self.files)
+        self.thread = Thread(target=self.__get_batch)
+        print(f"{self.files=}")
+        print(f"{self.item_count=}")
 
     def __batchify(self, data) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
@@ -59,37 +74,67 @@ class DataLoader:
         return (result[0].to(self.device), result[0].to(self.device))
 
     def __len__(self):
-        return int(np.ceil(self.item_count / self.__batch_size))
+        return (2 * self.item_count - self.time_steps + 1) // self.batch_size
 
     def __iter__(self):
         return self
 
     def __next__(self):
+        if self.thread.is_alive():
+            self.thread.join()
         if self.__is_first:
+            self.__is_first = False
             self.__get_batch()
-        while self.__next_batch == None:
-            pass
+        if self.should_stop_iteration:
+            raise StopIteration
         current_batch = self.__next_batch
         self.__next_batch = None
-        thread = Thread(target=self.__get_batch)
-        thread.start()
+        try:
+            self.thread.start()
+        except:
+            self.thread = Thread(target=self.__get_batch)
+            self.thread.start()
         return self.__batchify(current_batch)
 
     def __read_next_file(self):
         if self.file_index == len(self.files):
-            raise StopIteration
-        tensor = t.load(os.path.join(self.foder, f"{self.files[self.file_index]}"))
+            self.should_stop_iteration = True
+        tensor = t.tensor([[]])
+        # while (
+        #    tensor.shape[1] < 5
+        # ):  # TODO: some files have apparently only 5 in the second dimension, could mean there is a bug in the preprocessing or the data is not perfect
+        tensor = t.load(
+            os.path.join(self.folder, f"{self.files[self.file_index]}")
+        )
+        tensor = tensor[
+            :, :, :, : self.downsample_size[0], : self.downsample_size[1]
+        ]
+        # print(f"{tensor.shape=}")
+        if tensor.shape[1] < 5:
+            print("skipping")
+
+        # print(self.file_index)
+        # print(self.files[self.file_index])
         self.file_index += 1
+        if self.file_index == len(self.files):
+            self.should_stop_iteration = True
+
+        # TODO: apply downsampling_factor
         return tensor
 
     def __get_batch(self):
         accumulator = self.__remainder
+        self.__remainder = t.tensor([])
         while len(accumulator) < self.__batch_size:
-            to_be_gained = self.__batch_size - accumulator.shape[0]
+            to_be_gained = self.__batch_size - len(accumulator)
             next_batch = self.__read_next_file()
             new_data = next_batch[:to_be_gained]
+            # print(f"{new_data.shape=}")
+            # print(f"{accumulator.shape=}")
             accumulator = (
-                new_data if len(accumulator) == 0 else t.cat((accumulator, new_data))
+                new_data
+                if len(accumulator) == 0
+                else t.cat((accumulator, new_data))
             )
             self.__remainder = next_batch[to_be_gained:]
         self.__next_batch = accumulator
@@ -100,28 +145,36 @@ def get_loaders(
     test_batch_size: int,
     preprocessed_folder: str,
     device,
+    *,
     task: Task,
+    downsample_size: tuple[int, int] = (256, 256),
 ):
     return (
         DataLoader(
             train_batch_size,
             os.path.join(preprocessed_folder, "training"),
             device,
-            task,
+            task=task,
+            downsample_size=downsample_size,
         ),
         DataLoader(
             test_batch_size,
             os.path.join(preprocessed_folder, "validation"),
             device,
-            task,
+            task=task,
+            downsample_size=downsample_size,
         ),
         DataLoader(
-            test_batch_size, os.path.join(preprocessed_folder, "test"), device, task,
+            test_batch_size,
+            os.path.join(preprocessed_folder, "test"),
+            device,
+            task=task,
+            downsample_size=downsample_size,
         ),
     )
 
 
-def main():
+def test():
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=32,
@@ -129,10 +182,19 @@ def main():
         preprocessed_folder="preprocessed",
         device=device,
         task=Task.predict_next,
+        downsample_size=(16, 16),
     )
-    for batch in train_loader:
-        ipdb.set_trace()
+    print(f"{len(train_loader)=}")
+    i = 0
+    total_length = 0
+    for x, y in tqdm(train_loader):
+        print(f"{x.shape=}")
+        print(f"{y.shape=}")
+        total_length += len(x)
+        i += 1
+    print(f"{total_length=}")
+    print(f"Iterated {i} times")
 
 
 if __name__ == "__main__":
-    main()
+    test()
