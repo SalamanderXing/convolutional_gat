@@ -47,7 +47,8 @@ def train(
     gamma=1.0,  # 1.0 means disabled
     plot=True,
     criterion=nn.MSELoss(),
-    optimizer = None
+    optimizer = None,
+    downsample_size=(256, 256)
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -59,6 +60,7 @@ def train(
         preprocessed_folder="convolutional_gat/preprocessed",
         device=device,
         task=task,
+        downsample_size=downsample_size
     )
     print(
         f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
