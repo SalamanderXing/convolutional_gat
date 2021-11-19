@@ -6,7 +6,7 @@ from convolutional_gat.data_loader import Task
 MODEL = TemporalModel()
 EPOCHS = 10
 TRAIN_BATCH_SIZE = 32
-TEST_BATCH_SIZE = 32
+TEST_BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 TASK = Task.predict_next
 LR_STEP = 1
@@ -14,5 +14,3 @@ GAMMA = 1.0
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE=(50, 50)
-#DOWNSAMPLE_SIZE=(256, 256)

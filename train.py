@@ -13,7 +13,9 @@ from .data_loader import Task
 # todo: add that it saves the best performing model
 
 
-def plot_history(history: dict[str, list[float]], title: str = "Training History"):
+def plot_history(
+    history: dict[str, list[float]], title: str = "Training History"
+):
     plt.plot(t.arange(len(history)), history["train_loss"], label="Train loss")
     plt.plot(t.arange(len(history)), history["val_loss"], label="Val loss")
     plt.legend()
@@ -47,33 +49,35 @@ def train(
     gamma=1.0,  # 1.0 means disabled
     plot=True,
     criterion=nn.MSELoss(),
-    optimizer = None,
-    downsample_size=(256, 256)
+    optimizer=None,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
     )  # Select the GPU device, if there is one available.
     #
-    train_loader, val_loader, test_loader = get_loaders(
-        train_batch_size=train_batch_size,
-        test_batch_size=test_batch_size,
-        preprocessed_folder="convolutional_gat/preprocessed",
-        device=device,
-        task=task,
-        downsample_size=downsample_size
-    )
-    print(
-        f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
-    )
+    # device = t.device('cpu')
     model = model.to(device)
     summary(model, input_size=(12, 256, 256, 4, 5), device=device)
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     history = {"train_loss": [], "val_loss": []}
     for epoch in range(epochs):
+        train_loader, val_loader, test_loader = get_loaders(
+            train_batch_size=train_batch_size,
+            test_batch_size=test_batch_size,
+            preprocessed_folder="convolutional_gat/preprocessed",
+            device=device,
+            task=task,
+        )
+        # print(
+        #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+        # )
+
         model.train()
         print(f"\nEpoch: {epoch + 1}")
         running_loss = 0.0

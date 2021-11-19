@@ -106,6 +106,8 @@ class DataLoader:
         tensor = t.load(
             os.path.join(self.folder, f"{self.files[self.file_index]}")
         )
+        if len(tensor.shape) > 5:
+            ipdb.set_trace()
         tensor = tensor[
             :, :, :, : self.downsample_size[0], : self.downsample_size[1]
         ]
