@@ -56,7 +56,7 @@ def train(
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
-        preprocessed_folder="convolutional-gat/preprocessed",
+        preprocessed_folder="convolutional_gat/preprocessed",
         device=device,
         task=task,
     )
