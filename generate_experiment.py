@@ -26,11 +26,11 @@ def generate_experiment(argv: list[str]):
     optimizer = variables['OPTIMIZER'](model.parameters(), lr=learning_rate)
 
     history, test_loss = train(
+        model=model,
         train_batch_size=train_batch_size,
-        model_class=model_class,
         test_batch_size=test_batch_size,
         epochs=epochs,
-        lr=lr,
+        lr=learning_rate,
         task=task,
         lr_step=lr_step,
         gamma=gamma,

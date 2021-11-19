@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from GAT3D import GATLayerTemporal
-from data_loader import Task
+from convolutional_gat.model import TemporalModel
+from convolutional_gat.data_loader import Task
 
-MODEL = GATLayerTemporal.TemporalModel
+MODEL = TemporalModel()
 EPOCHS = 10
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 32

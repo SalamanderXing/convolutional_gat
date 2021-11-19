@@ -37,8 +37,8 @@ def test(model: nn.Module, device, val_test_loader):
 
 
 def train(
+    model,
     train_batch_size=1,
-    model_class=TemporalModel,
     test_batch_size=100,
     epochs=10,
     lr=0.001,
@@ -63,7 +63,7 @@ def train(
     print(
         f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
     )
-    model = model_class().to(device)
+    model = model.to(device)
     summary(model, input_size=(12, 256, 256, 4, 5), device=device)
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
