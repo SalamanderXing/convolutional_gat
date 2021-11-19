@@ -46,6 +46,8 @@ def train(
     lr_step=1,
     gamma=1.0,  # 1.0 means disabled
     plot=True,
+    criterion=nn.MSELoss(),
+    optimizer = None
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -64,8 +66,8 @@ def train(
     model = model_class().to(device)
     summary(model, input_size=(12, 256, 256, 4, 5), device=device)
     # optimizer = the procedure for updating the weights of our neural network
-    optimizer = t.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.MSELoss()
+    # optimizer = t.optim.Adam(model.parameters(), lr=lr)
+    # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
     scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     history = {"train_loss": [], "val_loss": []}
