@@ -1,8 +1,9 @@
 import torch
-from ...GAT3D.GATLayerTemporal import TemporalModel
-from ...data_loader import Task
+import torch.nn as nn
+from GAT3D import GATLayerTemporal
+from data_loader import Task
 
-MODEL = TemporalModel
+MODEL = GATLayerTemporal.TemporalModel
 EPOCHS = 10
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 32
@@ -12,4 +13,4 @@ LR_STEP = 1
 GAMMA = 1.0
 PLOT = False
 CRITERION = nn.MSELoss()
-OPTIMIZER = TORCH.optim.Adam
+OPTIMIZER = torch.optim.Adam
