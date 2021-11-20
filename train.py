@@ -29,13 +29,22 @@ def test(model: nn.Module, device, val_test_loader):
         running_loss = 0.0
         total_length = 0
         for data in tqdm(val_test_loader):
-            inputs, _ = data
-            inputs = inputs.to(device)
+            current_time_step, next_time_step = fix_sizes(*data)
+            inputs = current_time_step.to(device)
             outputs = model(inputs)
-            running_loss += t.sum((inputs - outputs) ** 2).item()
+            running_loss += t.sum((next_time_step - outputs) ** 2).item()
             total_length += len(inputs)
     model.train()
     return running_loss / total_length
+
+def fix_sizes(tensor1:t.Tensor, tensor2:t.Tensor):
+    tensor1 = tensor1.squeeze(3)  # same
+    # print(current_time_step.shape)
+    tensor1 = tensor1.permute(0, 3, 4, 1, 2)
+    tensor2 = tensor2.squeeze(3)  # same
+    # print(current_time_step.shape)
+    tensor2 = tensor2.permute(0, 3, 4, 1, 2)
+    return tensor1, tensor2
 
 
 def train(
@@ -50,7 +59,7 @@ def train(
     plot=True,
     criterion=nn.MSELoss(),
     optimizer=None,
-    downsample_size=(256, 256)
+    downsample_size=(50, 50),
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -58,7 +67,7 @@ def train(
     #
     # device = t.device('cpu')
     model = model.to(device)
-    summary(model, input_size=(12, 256, 256, 4, 5), device=device)
+    summary(model, input_size=(train_batch_size, downsample_size[0], downsample_size[1], 4, 5), device=device)
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
@@ -67,6 +76,7 @@ def train(
         optimizer, step_size=lr_step, gamma=gamma
     )
     history = {"train_loss": [], "val_loss": []}
+    print(f"Using {device}")
     for epoch in range(epochs):
         train_loader, val_loader, test_loader = get_loaders(
             train_batch_size=train_batch_size,
@@ -74,7 +84,7 @@ def train(
             preprocessed_folder="convolutional_gat/preprocessed",
             device=device,
             task=task,
-            downsample_size=downsample_size
+            downsample_size=downsample_size,
         )
         # print(
         #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
@@ -88,12 +98,7 @@ def train(
             print(f"LR: {param_group['lr']}")
         for current_time_step, next_time_step in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            current_time_step = current_time_step.squeeze(
-                3
-            )  # we only have one feature for now
-            next_time_step = next_time_step.squeeze(3)  # same
-            current_time_step = current_time_step.permute(0, 3, 4, 1, 2)
-            next_time_step = next_time_step.permute(0, 3, 4, 1, 2)
+            current_time_step, next_time_step = fix_sizes(current_time_step, next_time_step)
             optimizer.zero_grad()
             predicted_next_time_step = model(
                 current_time_step

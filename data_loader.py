@@ -5,6 +5,7 @@ import numpy as np
 import ipdb
 from enum import Enum, unique
 from tqdm import tqdm
+import json
 
 # todo: shuffling
 # todo: fix the fist batch is empty
@@ -22,6 +23,7 @@ class DataLoader:
         folder: str,
         device,
         *,
+        n_regions: int = 5,
         task: Task = Task.predict_next,
         time_steps: int = 4,
         norm_max=None,
@@ -31,6 +33,7 @@ class DataLoader:
             256,
         ),  # by default, don't downsample
     ):
+        self.n_regions = n_regions
         self.downsample_size = downsample_size
         self.folder = folder
         self.task = task
@@ -52,11 +55,11 @@ class DataLoader:
             [f for f in os.listdir(folder)], key=lambda x: int(x.split(".")[0])
         )
         max_file = max(int(f.split(".")[0]) for f in self.files)
-        print(f"{max_file=}")
+        # print(f"{max_file=}")
         self.item_count = 86 * len(self.files)
         self.thread = Thread(target=self.__get_batch)
-        print(f"{self.files=}")
-        print(f"{self.item_count=}")
+        # print(f"{self.files=}")
+        # print(f"{self.item_count=}")
 
     def __batchify(self, data) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
@@ -73,8 +76,8 @@ class DataLoader:
             result = (xs, labels)
         return (result[0].to(self.device), result[0].to(self.device))
 
-    def __len__(self):
-        return (2 * self.item_count - self.time_steps + 1) // self.batch_size
+    # def __len__(self):
+    #    return (2 * self.item_count - self.time_steps + 1) // self.batch_size
 
     def __iter__(self):
         return self
@@ -94,7 +97,9 @@ class DataLoader:
         except:
             self.thread = Thread(target=self.__get_batch)
             self.thread.start()
-        return self.__batchify(current_batch)
+        result = self.__batchify(current_batch)
+        # print(f"{result[0].shape=}")
+        return result
 
     def __read_next_file(self):
         if self.file_index == len(self.files):
@@ -103,9 +108,14 @@ class DataLoader:
         # while (
         #    tensor.shape[1] < 5
         # ):  # TODO: some files have apparently only 5 in the second dimension, could mean there is a bug in the preprocessing or the data is not perfect
+        # while tensor.shape[1] < 5:
         tensor = t.load(
             os.path.join(self.folder, f"{self.files[self.file_index]}")
         )
+        assert (
+            tensor.shape[1] == self.n_regions
+        ), f"Found a tensor that is not of the right shape {tensor.shape=}"
+        # print(f"{tensor.shape=}")
         if len(tensor.shape) > 5:
             ipdb.set_trace()
         tensor = tensor[
@@ -113,7 +123,9 @@ class DataLoader:
         ]
         # print(f"{tensor.shape=}")
         if tensor.shape[1] < 5:
-            print("skipping")
+            # print("skipping")
+            # ipdb.set_trace()
+            pass
 
         # print(self.file_index)
         # print(self.files[self.file_index])
@@ -151,6 +163,8 @@ def get_loaders(
     task: Task,
     downsample_size: tuple[int, int] = (256, 256),
 ):
+    with open(os.path.join(preprocessed_folder, "metadata.json")) as f:
+        metadata = json.load(f)
     return (
         DataLoader(
             train_batch_size,
@@ -158,6 +172,7 @@ def get_loaders(
             device,
             task=task,
             downsample_size=downsample_size,
+            n_regions=metadata["n_regions"],
         ),
         DataLoader(
             test_batch_size,
@@ -165,6 +180,7 @@ def get_loaders(
             device,
             task=task,
             downsample_size=downsample_size,
+            n_regions=metadata["n_regions"],
         ),
         DataLoader(
             test_batch_size,
@@ -172,6 +188,7 @@ def get_loaders(
             device,
             task=task,
             downsample_size=downsample_size,
+            n_regions=metadata["n_regions"],
         ),
     )
 
@@ -190,8 +207,19 @@ def test():
     i = 0
     total_length = 0
     for x, y in tqdm(train_loader):
-        print(f"{x.shape=}")
-        print(f"{y.shape=}")
+        # print(f"{x.shape=}")
+        # print(f"{y.shape=}")
+        assert (
+            x.shape[1] == 4 and y.shape[1] == 4
+        ), f"error, {x.shape=} {y.shape=}"
+        total_length += len(x)
+        i += 1
+    for x, y in tqdm(train_loader):
+        # print(f"{x.shape=}")
+        # print(f"{y.shape=}")
+        assert (
+            x.shape[1] == 4 and y.shape[1] == 4
+        ), f"error, {x.shape=} {y.shape=}"
         total_length += len(x)
         i += 1
     print(f"{total_length=}")
