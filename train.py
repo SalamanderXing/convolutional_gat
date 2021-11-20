@@ -56,6 +56,16 @@ def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
     tensor2 = tensor2.permute(0, 3, 4, 1, 2)
     return tensor1, tensor2
 
+def visualize_predictions(loader, model, number_of_preds=1):
+    device = t.device(
+            "cuda" if t.cuda.is_available() else "cpu"
+        )
+    for x, y in loader:
+        x, y = x[:number_of_preds], x[:number_of_preds]
+        x, y = x.to(device), y.to(device)
+        preds = model(x)
+        
+        break
 
 def train(
     model,
@@ -69,7 +79,8 @@ def train(
     plot=True,
     criterion=nn.MSELoss(),
     optimizer=None,
-    downsample_size=(50, 50),
+    downsample_size=(256, 256),
+    output_path='.'
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -140,10 +151,10 @@ def train(
         print(f"Val loss: {round(val_loss, 6)}")
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
-        with open("history.json", "w") as f:
+        with open(output_path + "/history.json", "w") as f:
             json.dump(history, f)
         if val_loss < min(history["val_loss"]):
-            t.save(model.state_dict(), "model.pt")
+            t.save(model.state_dict(), output_path + "/model.pt")
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
     if plot:

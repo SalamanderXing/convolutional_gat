@@ -25,6 +25,7 @@ def generate_experiment(argv: list[str]):
     criterion = variables["CRITERION"]
     optimizer = variables["OPTIMIZER"](model.parameters(), lr=learning_rate)
     downsample_size = variables["DOWNSAMPLE_SIZE"]
+
     history, test_loss = train(
         model=model,
         train_batch_size=train_batch_size,
@@ -38,6 +39,7 @@ def generate_experiment(argv: list[str]):
         criterion=criterion,
         optimizer=optimizer,
         downsample_size=downsample_size,
+        output_path=exp_path
     )
 
 
