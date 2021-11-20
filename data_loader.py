@@ -76,29 +76,32 @@ class DataLoader:
             result = (xs, labels)
         return (result[0].to(self.device), result[0].to(self.device))
 
-    # def __len__(self):
-    #    return (2 * self.item_count - self.time_steps + 1) // self.batch_size
+    def __len__(self):
+        return (self.item_count - self.time_steps + 1) // self.batch_size
 
     def __iter__(self):
         return self
 
     def __next__(self):
+        if self.should_stop_iteration:
+            #print(f"Number of files read: {self.file_index} out of {len(self.files)}")
+            raise StopIteration
+
         if self.thread.is_alive():
             self.thread.join()
         if self.__is_first:
             self.__is_first = False
             self.__get_batch()
-        if self.should_stop_iteration:
-            raise StopIteration
         current_batch = self.__next_batch
         self.__next_batch = None
-        try:
-            self.thread.start()
-        except:
-            self.thread = Thread(target=self.__get_batch)
-            self.thread.start()
+        if not self.should_stop_iteration:
+            try:
+                self.thread.start()
+            except:
+                self.thread = Thread(target=self.__get_batch)
+                self.thread.start()
         result = self.__batchify(current_batch)
-        # print(f"{result[0].shape=}")
+            # print(f"{result[0].shape=}")
         return result
 
     def __read_next_file(self):
@@ -139,7 +142,10 @@ class DataLoader:
     def __get_batch(self):
         accumulator = self.__remainder
         self.__remainder = t.tensor([])
-        while len(accumulator) < self.__batch_size:
+        while (
+            len(accumulator) < self.__batch_size
+            and not self.should_stop_iteration
+        ):
             to_be_gained = self.__batch_size - len(accumulator)
             next_batch = self.__read_next_file()
             new_data = next_batch[:to_be_gained]

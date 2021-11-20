@@ -16,15 +16,24 @@ from .data_loader import Task
 def plot_history(
     history: dict[str, list[float]], title: str = "Training History"
 ):
-    plt.plot(t.arange(len(history)), history["train_loss"], label="Train loss")
-    plt.plot(t.arange(len(history)), history["val_loss"], label="Val loss")
+    plt.plot(
+        t.arange(len(history["train_loss"])),
+        history["train_loss"],
+        label="Train loss",
+    )
+    plt.plot(
+        t.arange(len(history["train_loss"])),
+        history["val_loss"],
+        label="Val loss",
+    )
     plt.legend()
     plt.title(title)
     plt.show()
 
 
-def test(model: nn.Module, device, val_test_loader):
+def test(model: nn.Module, device, val_test_loader, label="val"):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
+    print(f"{label=}")
     with t.no_grad():  # Disables the autograd engine
         running_loss = 0.0
         total_length = 0
@@ -37,7 +46,8 @@ def test(model: nn.Module, device, val_test_loader):
     model.train()
     return running_loss / total_length
 
-def fix_sizes(tensor1:t.Tensor, tensor2:t.Tensor):
+
+def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
     tensor1 = tensor1.squeeze(3)  # same
     # print(current_time_step.shape)
     tensor1 = tensor1.permute(0, 3, 4, 1, 2)
@@ -67,7 +77,17 @@ def train(
     #
     # device = t.device('cpu')
     model = model.to(device)
-    summary(model, input_size=(train_batch_size, downsample_size[0], downsample_size[1], 4, 5), device=device)
+    summary(
+        model,
+        input_size=(
+            train_batch_size,
+            downsample_size[0],
+            downsample_size[1],
+            4,
+            5,
+        ),
+        device=device,
+    )
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
@@ -76,7 +96,7 @@ def train(
         optimizer, step_size=lr_step, gamma=gamma
     )
     history = {"train_loss": [], "val_loss": []}
-    print(f"Using {device}")
+    print(f"Using device: {device}")
     for epoch in range(epochs):
         train_loader, val_loader, test_loader = get_loaders(
             train_batch_size=train_batch_size,
@@ -98,7 +118,9 @@ def train(
             print(f"LR: {param_group['lr']}")
         for current_time_step, next_time_step in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            current_time_step, next_time_step = fix_sizes(current_time_step, next_time_step)
+            current_time_step, next_time_step = fix_sizes(
+                current_time_step, next_time_step
+            )
             optimizer.zero_grad()
             predicted_next_time_step = model(
                 current_time_step
@@ -122,7 +144,7 @@ def train(
             json.dump(history, f)
         if val_loss < min(history["val_loss"]):
             t.save(model.state_dict(), "model.pt")
-    test_loss = test(model, device, test_loader)
+    test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
     if plot:
         plot_history(history)
