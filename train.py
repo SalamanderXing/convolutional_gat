@@ -14,21 +14,22 @@ from .data_loader import Task
 
 
 def plot_history(
-    history: dict[str, list[float]], title: str = "Training History"
+    history: dict[str, list[float]], title: str = "Training History", save=False, filename='train'
 ):
     plt.plot(
-        t.arange(len(history["train_loss"])),
         history["train_loss"],
         label="Train loss",
     )
     plt.plot(
-        t.arange(len(history["train_loss"])),
         history["val_loss"],
         label="Val loss",
     )
     plt.legend()
     plt.title(title)
-    plt.show()
+    if save:
+        plt.savefig(filename)
+    else:
+        plt.show()
 
 
 def test(model: nn.Module, device, val_test_loader, label="val"):
@@ -157,6 +158,9 @@ def train(
             t.save(model.state_dict(), output_path + "/model.pt")
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
+    
+    plot_history(history, title="Training History", save=True, filename=output_path + '/train.png')
+
     if plot:
         plot_history(history)
     return history, test_loss
