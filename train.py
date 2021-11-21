@@ -57,15 +57,47 @@ def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
     tensor2 = tensor2.permute(0, 3, 4, 1, 2)
     return tensor1, tensor2
 
-def visualize_predictions(loader, model, number_of_preds=1):
+def visualize_predictions(model, number_of_preds=1, path='', downsample_size=(256, 256)):
     device = t.device(
             "cuda" if t.cuda.is_available() else "cpu"
         )
+    loader, _, _ = get_loaders(
+        train_batch_size=1,
+        test_batch_size=1,
+        preprocessed_folder="convolutional_gat/preprocessed",
+        device=device,
+        task=Task.predict_next,
+        downsample_size=downsample_size,
+    )
+
+    model = model.to(device)
+    N_COLS = 4 # frames
+    N_ROWS = 3 # x, y, preds
+    fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
     for x, y in loader:
         x, y = x[:number_of_preds], x[:number_of_preds]
+        x, y = fix_sizes(x, y)
         x, y = x.to(device), y.to(device)
         preds = model(x)
-        
+
+        for i, row in enumerate(ax):
+            for j, col in enumerate(row):
+                if i == 0:
+                    col.imshow(x.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
+                elif i == 1:
+                    col.imshow(y.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
+                else:
+                    col.imshow(preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
+
+        row_labels = ['x', 'y', 'preds']
+        for ax_, row in zip(ax[:,0], row_labels):
+            ax_.set_ylabel(row)
+
+        col_labels = ['frame1', 'frame2', 'frame3', 'frame4']
+        for ax_, col in zip(ax[0,:], col_labels):
+            ax_.set_title(col)
+
+        plt.savefig(path + '/results_viz.png')
         break
 
 def train(
@@ -160,7 +192,7 @@ def train(
     print(f"Test loss: {round(test_loss, 6)}")
     
     plot_history(history, title="Training History", save=True, filename=output_path + '/train.png')
-
+    visualize_predictions(model, number_of_preds=1, path=output_path, downsample_size=downsample_size)
     if plot:
         plot_history(history)
     return history, test_loss
