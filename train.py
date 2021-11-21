@@ -153,7 +153,7 @@ def train(
         history["val_loss"].append(val_loss)
         with open(output_path + "/history.json", "w") as f:
             json.dump(history, f)
-        if val_loss < min(history["val_loss"]):
+        if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
             t.save(model.state_dict(), output_path + "/model.pt")
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
