@@ -71,10 +71,10 @@ class DataLoader:
                 )
             )
             even_mask = t.arange(len(shifted)) % 2 == 0
-            labels = shifted[even_mask]
-            xs = shifted[t.logical_not(even_mask)]
+            xs = shifted[even_mask]
+            labels = shifted[t.logical_not(even_mask)]
             result = (xs, labels)
-        return (result[0].to(self.device), result[0].to(self.device))
+        return (result[0].to(self.device), result[1].to(self.device))
 
     def __len__(self):
         return (self.item_count - self.time_steps + 1) // self.batch_size
@@ -84,7 +84,7 @@ class DataLoader:
 
     def __next__(self):
         if self.should_stop_iteration:
-            #print(f"Number of files read: {self.file_index} out of {len(self.files)}")
+            # print(f"Number of files read: {self.file_index} out of {len(self.files)}")
             raise StopIteration
 
         if self.thread.is_alive():
@@ -101,7 +101,7 @@ class DataLoader:
                 self.thread = Thread(target=self.__get_batch)
                 self.thread.start()
         result = self.__batchify(current_batch)
-            # print(f"{result[0].shape=}")
+        # print(f"{result[0].shape=}")
         return result
 
     def __read_next_file(self):
