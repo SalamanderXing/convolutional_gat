@@ -165,6 +165,7 @@ def train(
             current_time_step, next_time_step = fix_sizes(
                 current_time_step, next_time_step
             )
+            current_time_step, next_time_step = current_time_step.to(device), next_time_step.to(device)
             optimizer.zero_grad()
             predicted_next_time_step = model(
                 current_time_step
