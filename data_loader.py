@@ -73,7 +73,9 @@ class DataLoader:
             even_mask = t.arange(len(shifted)) % 2 == 0
             xs = shifted[even_mask]
             labels = shifted[t.logical_not(even_mask)]
-            result = (xs, labels)
+            min_len = min(len(xs), len(labels))
+            result = (xs[:min_len], labels[:min_len])
+            ipdb.set_trace()
         return (result[0].to(self.device), result[1].to(self.device))
 
     def __len__(self):
