@@ -37,7 +37,7 @@ def fix_sizes(tensors: list[t.Tensor]):
 """
 
 
-def fix_sizes(to_fix: list[t.Tensor]):
+def fix_sizes(to_fix: list[t.Tensor]) -> list[t.Tensor]:
     min_size = min(f.shape[1] for f in to_fix)
     return [tensor[:, :min_size, :, :] for tensor in to_fix]
 

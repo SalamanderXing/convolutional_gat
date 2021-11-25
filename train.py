@@ -14,7 +14,10 @@ from .data_loader import Task
 
 
 def plot_history(
-    history: dict[str, list[float]], title: str = "Training History", save=False, filename='train'
+    history: dict[str, list[float]],
+    title: str = "Training History",
+    save=False,
+    filename="train",
 ):
     plt.plot(
         history["train_loss"],
@@ -57,10 +60,11 @@ def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
     tensor2 = tensor2.permute(0, 3, 4, 1, 2)
     return tensor1, tensor2
 
-def visualize_predictions(model, number_of_preds=1, path='', downsample_size=(256, 256)):
-    device = t.device(
-            "cuda" if t.cuda.is_available() else "cpu"
-        )
+
+def visualize_predictions(
+    model, number_of_preds=1, path="", downsample_size=(256, 256)
+):
+    device = t.device("cuda" if t.cuda.is_available() else "cpu")
     loader, _, _ = get_loaders(
         train_batch_size=1,
         test_batch_size=1,
@@ -69,11 +73,10 @@ def visualize_predictions(model, number_of_preds=1, path='', downsample_size=(25
         task=Task.predict_next,
         downsample_size=downsample_size,
     )
-
     model = model.to(device)
-    N_COLS = 4 # frames
-    N_ROWS = 3 # x, y, preds
-    fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
+    N_COLS = 4  # frames
+    N_ROWS = 3  # x, y, preds
+    _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
     for x, y in loader:
         x, y = x[:number_of_preds], x[:number_of_preds]
         x, y = fix_sizes(x, y)
@@ -87,18 +90,21 @@ def visualize_predictions(model, number_of_preds=1, path='', downsample_size=(25
                 elif i == 1:
                     col.imshow(y.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
                 else:
-                    col.imshow(preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
+                    col.imshow(
+                        preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0]
+                    )
 
-        row_labels = ['x', 'y', 'preds']
-        for ax_, row in zip(ax[:,0], row_labels):
+        row_labels = ["x", "y", "preds"]
+        for ax_, row in zip(ax[:, 0], row_labels):
             ax_.set_ylabel(row)
 
-        col_labels = ['frame1', 'frame2', 'frame3', 'frame4']
-        for ax_, col in zip(ax[0,:], col_labels):
+        col_labels = ["frame1", "frame2", "frame3", "frame4"]
+        for ax_, col in zip(ax[0, :], col_labels):
             ax_.set_title(col)
 
-        plt.savefig(path + '/results_viz.png')
+        plt.savefig(path + "/results_viz.png")
         break
+
 
 def train(
     model,
@@ -113,7 +119,7 @@ def train(
     criterion=nn.MSELoss(),
     optimizer=None,
     downsample_size=(256, 256),
-    output_path='.'
+    output_path=".",
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -160,22 +166,17 @@ def train(
         total_length = 0
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
-        for current_time_step, next_time_step in tqdm(train_loader):
+        for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            current_time_step, next_time_step = fix_sizes(
-                current_time_step, next_time_step
-            )
-            ipdb.set_trace()
+            x, y = fix_sizes(x, y)
             optimizer.zero_grad()
-            predicted_next_time_step = model(
-                current_time_step
-            )  # Implicitly calls the model's forward function
-            loss = criterion(predicted_next_time_step, next_time_step)
+            y_hat = model(x)  # Implicitly calls the model's forward function
+            loss = criterion(y_hat, y)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
-            total_length += len(current_time_step)
-            running_loss += t.sum(
-                (predicted_next_time_step - next_time_step) ** 2
+            total_length += len(x)
+            running_loss += (
+                t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]))
             ).item()
 
         scheduler.step()
@@ -187,13 +188,25 @@ def train(
         history["val_loss"].append(val_loss)
         with open(output_path + "/history.json", "w") as f:
             json.dump(history, f)
-        if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
+        if len(history["val_loss"]) > 1 and val_loss < min(
+            history["val_loss"][:-1]
+        ):
             t.save(model.state_dict(), output_path + "/model.pt")
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
-    
-    plot_history(history, title="Training History", save=True, filename=output_path + '/train.png')
-    visualize_predictions(model, number_of_preds=1, path=output_path, downsample_size=downsample_size)
+
+    plot_history(
+        history,
+        title="Training History",
+        save=True,
+        filename=output_path + "/train.png",
+    )
+    visualize_predictions(
+        model,
+        number_of_preds=1,
+        path=output_path,
+        downsample_size=downsample_size,
+    )
     if plot:
         plot_history(history)
     return history, test_loss

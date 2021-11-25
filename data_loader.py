@@ -75,7 +75,6 @@ class DataLoader:
             labels = shifted[t.logical_not(even_mask)]
             min_len = min(len(xs), len(labels))
             result = (xs[:min_len], labels[:min_len])
-            ipdb.set_trace()
         return (result[0].to(self.device), result[1].to(self.device))
 
     def __len__(self):
