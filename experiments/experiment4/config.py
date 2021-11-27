@@ -3,9 +3,8 @@ import torch.nn as nn
 from convolutional_gat.model import TemporalModel
 from convolutional_gat.data_loader import Task
 
-# Redo experiment1 with fixed dataloader for y
 MODEL = TemporalModel()
-EPOCHS = 30
+EPOCHS = 15
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 32
 LEARNING_RATE = 0.001

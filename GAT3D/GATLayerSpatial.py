@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+from unet import UNet
 
 
 class GATLayerSpatial(nn.Module):
-    def __init__(self, in_features, out_features, alpha):
+    def __init__(self, in_features, out_features, alpha, conv=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -16,6 +17,7 @@ class GATLayerSpatial(nn.Module):
         self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.conv = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -24,7 +26,10 @@ class GATLayerSpatial(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        Wh = torch.matmul(h, self.W)
+        if conv:
+            Wh = model(h)
+        else:
+            Wh = torch.matmul(h, self.W)
 
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = torch.matmul(a_input, self.a)

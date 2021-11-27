@@ -8,7 +8,7 @@ import ipdb
 
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
-    def __init__(self, in_features, out_features, alpha):
+    def __init__(self, in_features, out_features, alpha, conv=False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -16,6 +16,7 @@ class GATLayerTemporal(nn.Module):
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.conv = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -23,6 +24,11 @@ class GATLayerTemporal(nn.Module):
             h = h.permute(0, 4, 1, 2, 3)
         else:
             N, V, H, W = h.size()
+
+        if conv:
+            Wh = model(h)
+        else:
+            Wh = torch.matmul(h, self.W)
 
         self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(
             self.W.device
