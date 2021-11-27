@@ -7,8 +7,6 @@ import numpy as np
 import torch as t
 from tqdm import tqdm
 
-from .data_utils import read_and_normalize_h5
-
 # TODO: normalized data
 # TODO: get precipitation instead of temperature
 # TODO: implement blacklisting
