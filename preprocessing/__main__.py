@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import json
-from .extract_feature import preprocess
+from .preprocessing import preprocess
 
 
 def main():
