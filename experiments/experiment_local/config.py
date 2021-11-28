@@ -4,7 +4,7 @@ from convolutional_gat.model import TemporalModel
 from convolutional_gat.data_loader import Task
 
 MODEL = TemporalModel()
-EPOCHS = 3
+EPOCHS = 15
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 32
 LEARNING_RATE = 0.001
