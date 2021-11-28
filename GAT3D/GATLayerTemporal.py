@@ -1,9 +1,11 @@
+import ipdb
 import numpy as np
-import torch
+import torch as t
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-import ipdb
+
+from .unet import UNet
 
 
 class GATLayerTemporal(nn.Module):
@@ -13,10 +15,12 @@ class GATLayerTemporal(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
+        self.W = nn.Parameter(t.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.conv = UNet(in_features, out_features)
+        self.is_conv = conv
+        if self.is_conv:
+            self.conv = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -25,51 +29,55 @@ class GATLayerTemporal(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        if conv:
-            Wh = model(h)
-        else:
-            Wh = torch.matmul(h, self.W)
-
-        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(
+        
+        self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
             self.W.device
         )  # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        Wh = torch.matmul(h, self.W)
+        if self.is_conv:
+            Wh = self.conv(h)
+        else:
+            # ipdb.set_trace()
+            # Wh = torch.matmul(h.double(), self.W.double())
+            Wh = t.matmul(h, self.W)
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
-        e = torch.matmul(a_input, self.a)
+        e = t.matmul(a_input, self.a)
         e = self.leakyrelu(e.squeeze(-1))
         attention = F.softmax(e, dim=-1)
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.B = nn.Parameter(torch.zeros(V, V) + 1e-6).to(self.W.device)
-        self.A = Variable(torch.eye(V), requires_grad=False).to(self.W.device)
+        self.B = nn.Parameter(t.zeros(V, V) + 1e-6).to(self.W.device)
+        self.A = Variable(t.eye(V), requires_grad=False).to(self.W.device)
         adj_mat = self.B[:, :] + self.A[:, :]
-        adj_mat_min = torch.min(adj_mat)
-        adj_mat_max = torch.max(adj_mat)
+        adj_mat_min = t.min(adj_mat)
+        adj_mat_max = t.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(torch.diag(torch.sum(adj_mat, axis=1)), requires_grad=False)
-        D_12 = torch.sqrt(torch.inverse(D))
-        adj_mat_norm_d12 = torch.matmul(torch.matmul(D_12, adj_mat), D_12)
+        D = Variable(
+            t.diag(t.sum(adj_mat, axis=1)), requires_grad=False
+        )
+        D_12 = t.sqrt(t.inverse(D))
+        adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
 
         Wh = Wh.view(N, V, H * W, T)  # Warning, T might be undefined
-        attention = torch.diag_embed(attention)
+        attention = t.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = torch.zeros(N, H * W, T).to(self.W.device)  # added by Giulio
+            at = t.zeros(N, H * W, T).to(self.W.device)  # added by Giulio
             for j in range(V):
-                at += torch.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
+                at += t.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
             Wh_.append(at)
-        h_prime = torch.stack((Wh_))
+        h_prime = t.stack((Wh_))
         h_prime = h_prime.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
-        h_prime = torch.matmul(h_prime, adj_mat_norm_d12).view(N, H, W, T, V)
-        return F.elu(h_prime)
+        h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(N, H, W, T, V)
+        #return F.elu(h_prime)
+        return t.sigmoid(F.elu(h_prime))
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
         B, M, H, W, T = Wh.shape
         Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
         Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
-        all_combinations_matrix = torch.cat(
+        all_combinations_matrix = t.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-2
         )
         return all_combinations_matrix.view(B, M, M, T, 2 * H * W)

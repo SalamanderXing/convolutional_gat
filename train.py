@@ -168,10 +168,12 @@ def train(
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            x = x.type(t.float32)
+            y = y.type(t.float32)
             x, y = fix_sizes(x, y)
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y)
+            loss = criterion(y_hat, y).float()
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
