@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import ipdb
-
+from .unet import UNet
 
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
@@ -16,17 +16,22 @@ class GATLayerTemporal(nn.Module):
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.conv = UNet(in_features, out_features)
+        self.conv = conv
+        self.conv_net = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
-            N, H, W, T, V = h.size()
+            N, H, W, T, V = h.size() # 32, 5, 35, 35, 4
             h = h.permute(0, 4, 1, 2, 3)
         else:
             N, V, H, W = h.size()
 
-        if conv:
-            Wh = model(h)
+        if self.conv:
+            whs = []
+            for i in range(H):
+                whi = conv_net(h[:, i, :, :, :])
+                whs.append(whi)
+            Wh = torch.cat(whs, axis=1)
         else:
             Wh = torch.matmul(h, self.W)
 

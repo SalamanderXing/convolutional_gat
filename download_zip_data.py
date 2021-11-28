@@ -2,7 +2,8 @@ import gdown
 import zipfile
 
 if __name__ == "__main__":
-    file_id = "1UlmIdSCohybVoz1cEHp4uohenuH95lrk"
+#    file_id = "1UlmIdSCohybVoz1cEHp4uohenuH95lrk"
+    file_id = "1acc0jYSLkoQVcse42BOxfEKHvdC0fxfc"
     url = "https://drive.google.com/uc?id=" + file_id
     output = "preprocessed.zip"
     gdown.download(url, output, quiet=False)
