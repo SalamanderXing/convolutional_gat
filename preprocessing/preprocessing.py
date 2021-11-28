@@ -206,6 +206,8 @@ def preprocess(
     if os.path.exists(out_path):
         os.system(f"rm -rf {out_path}")
     os.mkdir(out_path)
+    print(f"{in_path=}")
+    print(f"{out_path=}")
     log = Logger(verbose)
     n_regions = len(os.listdir(in_path))
     print(f"{n_regions=}")
