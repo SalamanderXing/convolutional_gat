@@ -174,10 +174,10 @@ def block_to_tensor(
                     fc.add_offset if "add_offset" in fc.__dict__ else 0
                 )
                 normalized_array = (
-                    array / (np.max(valid_range) * scale_factor)
-                ) - add_offset
-                minv = np.min(fc)
-                maxv = np.max(fc)
+                    (array / (np.max(valid_range) * scale_factor)) - add_offset
+                ).astype(np.float32)
+                # minv = np.min(fc)
+                # maxv = np.max(fc)
                 # if minv != 0 or maxv != 0:
                 """
                 print(f"{maxv=}")
@@ -210,7 +210,7 @@ def preprocess(
     n_regions = len(os.listdir(in_path))
     print(f"{n_regions=}")
     metadata = {"n_regions": n_regions}
-    conditions = ["training", "validation", "test"][2:]
+    conditions = ["training", "validation"]
     for condition in conditions:
         metadata[condition] = {"length": 0}
         log(f"Preprocessing {condition}")

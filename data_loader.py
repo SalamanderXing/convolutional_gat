@@ -93,6 +93,15 @@ class DataLoader:
 
         return (tensor_xs, tensor_ys)
 
+    def fix_sizes(self, tensor1: t.Tensor, tensor2: t.Tensor):
+        tensor1 = tensor1.squeeze(3)  # same
+        # print(current_time_step.shape)
+        tensor1 = tensor1.permute(0, 3, 4, 1, 2)
+        tensor2 = tensor2.squeeze(3)  # same
+        # print(current_time_step.shape)
+        tensor2 = tensor2.permute(0, 3, 4, 1, 2)
+        return tensor1, tensor2
+
     def __iter__(self):
         return self
 
@@ -115,9 +124,8 @@ class DataLoader:
                 self.thread = Thread(target=self.__get_batch)
                 self.thread.start()
         # print(f"{result[0].shape=}")
-        return (
-            current_batch[0].to(self.device),
-            current_batch[1].to(self.device),
+        return self.fix_sizes(
+            current_batch[0].to(self.device), current_batch[1].to(self.device),
         )
 
     def __read_next_file(self) -> t.Tensor:

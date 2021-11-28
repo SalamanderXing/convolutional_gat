@@ -6,7 +6,7 @@ from .preprocessing import preprocess
 def main():
     parser = ArgumentParser()
     parser.add_argument("--in-path", type=str, default="./data")
-    parser.add_argument("--out-path", type=str, default="/mnt/preprocessed2test")
+    parser.add_argument("--out-path", type=str, default="/mnt/preprocessed3")
     parser.add_argument(
         "--select-variables",
         type=str,

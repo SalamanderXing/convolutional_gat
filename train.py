@@ -51,15 +51,6 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
     return running_loss / total_length
 
 
-def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
-    tensor1 = tensor1.squeeze(3)  # same
-    # print(current_time_step.shape)
-    tensor1 = tensor1.permute(0, 3, 4, 1, 2)
-    tensor2 = tensor2.squeeze(3)  # same
-    # print(current_time_step.shape)
-    tensor2 = tensor2.permute(0, 3, 4, 1, 2)
-    return tensor1, tensor2
-
 
 def visualize_predictions(
     model, number_of_preds=1, path="", downsample_size=(256, 256)
@@ -168,12 +159,9 @@ def train(
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            x = x.type(t.float32)
-            y = y.type(t.float32)
-            x, y = fix_sizes(x, y)
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y).float()
+            loss = criterion(y_hat, y)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)

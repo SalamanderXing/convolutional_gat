@@ -17,7 +17,9 @@ class GATLayerSpatial(nn.Module):
         self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.conv = UNet(in_features, out_features)
+        self.is_conv = conv
+        if self.is_conv:
+            self.conv = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -26,11 +28,10 @@ class GATLayerSpatial(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        if conv:
-            Wh = model(h)
+        if self.is_conv:
+            Wh = self.conv(h)
         else:
             Wh = torch.matmul(h, self.W)
-
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = torch.matmul(a_input, self.a)
         e = self.leakyrelu(e.squeeze(-1))
