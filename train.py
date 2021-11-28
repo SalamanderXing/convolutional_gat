@@ -20,12 +20,10 @@ def plot_history(
     filename="train",
 ):
     plt.plot(
-        history["train_loss"],
-        label="Train loss",
+        history["train_loss"], label="Train loss",
     )
     plt.plot(
-        history["val_loss"],
-        label="Val loss",
+        history["val_loss"], label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -39,17 +37,17 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     print(f"{label=}")
     with t.no_grad():  # Disables the autograd engine
-        running_loss = 0.0
+        running_loss = t.tensor(0.0)
         total_length = 0
-        for data in tqdm(val_test_loader):
-            current_time_step, next_time_step = fix_sizes(*data)
-            inputs = current_time_step.to(device)
-            outputs = model(inputs)
-            running_loss += t.sum((next_time_step - outputs) ** 2).item()
-            total_length += len(inputs)
+        for x, y in tqdm(val_test_loader):
+            y_hat = model(x)
+            running_loss += (
+                t.sum((y - y_hat) ** 2)
+                / t.prod(t.tensor(y.shape[1:]).to(device))
+            ).cpu()
+            total_length += len(x)
     model.train()
-    return running_loss / total_length
-
+    return (running_loss / total_length).item()
 
 
 def visualize_predictions(
@@ -153,7 +151,7 @@ def train(
 
         model.train()
         print(f"\nEpoch: {epoch + 1}")
-        running_loss = 0.0
+        running_loss = t.tensor(0.0)
         total_length = 0
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
@@ -166,11 +164,12 @@ def train(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]))
-            ).item()
+                t.sum((y_hat - y) ** 2)
+                / t.prod(t.tensor(y.shape[1:]).to(device))
+            ).cpu()
 
         scheduler.step()
-        train_loss = running_loss / total_length
+        train_loss = (running_loss / total_length).item()
         print(f"Train loss: {round(train_loss, 6)}")
         val_loss = test(model, device, val_loader)
         print(f"Val loss: {round(val_loss, 6)}")
