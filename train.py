@@ -20,12 +20,10 @@ def plot_history(
     filename="train",
 ):
     plt.plot(
-        history["train_loss"],
-        label="Train loss",
+        history["train_loss"], label="Train loss",
     )
     plt.plot(
-        history["val_loss"],
-        label="Val loss",
+        history["val_loss"], label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -37,28 +35,18 @@ def plot_history(
 
 def test(model: nn.Module, device, val_test_loader, label="val"):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
-    print(f"{label=}")
     with t.no_grad():  # Disables the autograd engine
-        running_loss = 0.0
+        running_loss = t.tensor(0.0)
         total_length = 0
-        for data in tqdm(val_test_loader):
-            current_time_step, next_time_step = fix_sizes(*data)
-            inputs = current_time_step.to(device)
-            outputs = model(inputs)
-            running_loss += t.sum((next_time_step - outputs) ** 2).item()
-            total_length += len(inputs)
+        for x, y in tqdm(val_test_loader):
+            y_hat = model(x)
+            running_loss += (
+                t.sum((y - y_hat) ** 2)
+                / t.prod(t.tensor(y.shape[1:]).to(device))
+            ).cpu()
+            total_length += len(x)
     model.train()
-    return running_loss / total_length
-
-
-def fix_sizes(tensor1: t.Tensor, tensor2: t.Tensor):
-    tensor1 = tensor1.squeeze(3)  # same
-    # print(current_time_step.shape)
-    tensor1 = tensor1.permute(0, 3, 4, 1, 2)
-    tensor2 = tensor2.squeeze(3)  # same
-    # print(current_time_step.shape)
-    tensor2 = tensor2.permute(0, 3, 4, 1, 2)
-    return tensor1, tensor2
+    return (running_loss / total_length).item()
 
 
 def visualize_predictions(
@@ -78,9 +66,7 @@ def visualize_predictions(
     N_ROWS = 3  # x, y, preds
     _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
     for x, y in loader:
-        x, y = x[:number_of_preds], x[:number_of_preds]
-        x, y = fix_sizes(x, y)
-        x, y = x.to(device), y.to(device)
+        x, y = x[:number_of_preds], y[:number_of_preds]
         preds = model(x)
 
         for i, row in enumerate(ax):
@@ -162,13 +148,12 @@ def train(
 
         model.train()
         print(f"\nEpoch: {epoch + 1}")
-        running_loss = 0.0
+        running_loss = t.tensor(0.0)
         total_length = 0
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            x, y = fix_sizes(x, y)
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
             loss = criterion(y_hat, y)
@@ -176,11 +161,12 @@ def train(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]))
-            ).item()
+                t.sum((y_hat - y) ** 2)
+                / t.prod(t.tensor(y.shape[1:]).to(device))
+            ).cpu()
 
         scheduler.step()
-        train_loss = running_loss / total_length
+        train_loss = (running_loss / total_length).item()
         print(f"Train loss: {round(train_loss, 6)}")
         val_loss = test(model, device, val_loader)
         print(f"Val loss: {round(val_loss, 6)}")
