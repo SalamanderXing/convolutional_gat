@@ -209,9 +209,10 @@ def preprocess(
     log = Logger(verbose)
     n_regions = len(os.listdir(in_path))
     print(f"{n_regions=}")
-    metadata = {"n_regions": n_regions, "length": 0}
+    metadata = {"n_regions": n_regions}
     conditions = ["training", "validation", "test"]
     for condition in conditions:
+        metadata[condition] = {"length": 0}
         log(f"Preprocessing {condition}")
         out_condition_path = os.path.join(out_path, condition)
         mkdir(out_condition_path)
@@ -269,7 +270,7 @@ def preprocess(
             file_name = os.path.join(out_condition_path, f"{i}.pt")
             tensor_block = block_to_tensor(block)
             t.save(tensor_block, file_name)
-            metadata["length"] += len(tensor_block)
+            metadata[condition]["length"] += len(tensor_block)
         print(f"Done {condition}")
     print("Writing metadata:")
     print(json.dumps(metadata, indent=4))

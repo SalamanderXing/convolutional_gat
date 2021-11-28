@@ -23,6 +23,7 @@ class DataLoader:
         folder: str,
         device,
         *,
+        total_length: int,
         n_regions: int = 5,
         task: Task = Task.predict_next,
         time_steps: int = 4,
@@ -33,6 +34,7 @@ class DataLoader:
             256,
         ),  # by default, don't downsample
     ):
+        self.total_length = total_length
         self.n_regions = n_regions
         self.downsample_size = downsample_size
         self.folder = folder
@@ -57,6 +59,11 @@ class DataLoader:
         self.thread = Thread(target=self.__get_batch)
         # print(f"{self.files=}")
         # print(f"{self.item_count=}")
+
+    def __len__(self):
+        return self.total_length - (self.time_steps - 1) * (
+            len(self.files) + 1
+        )
 
     def __batchify(self, data: t.Tensor) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
@@ -204,6 +211,7 @@ def get_loaders(
             train_batch_size,
             os.path.join(preprocessed_folder, "training"),
             device,
+            total_length=metadata["training"]["length"],
             task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
@@ -212,6 +220,7 @@ def get_loaders(
             test_batch_size,
             os.path.join(preprocessed_folder, "validation"),
             device,
+            total_length=metadata["validation"]["length"],
             task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
@@ -220,6 +229,7 @@ def get_loaders(
             test_batch_size,
             os.path.join(preprocessed_folder, "test"),
             device,
+            total_length=metadata["test"]["length"],
             task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
