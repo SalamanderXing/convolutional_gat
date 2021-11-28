@@ -35,7 +35,6 @@ def plot_history(
 
 def test(model: nn.Module, device, val_test_loader, label="val"):
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
-    print(f"{label=}")
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
         total_length = 0
@@ -67,9 +66,7 @@ def visualize_predictions(
     N_ROWS = 3  # x, y, preds
     _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
     for x, y in loader:
-        x, y = x[:number_of_preds], x[:number_of_preds]
-        x, y = fix_sizes(x, y)
-        x, y = x.to(device), y.to(device)
+        x, y = x[:number_of_preds], y[:number_of_preds]
         preds = model(x)
 
         for i, row in enumerate(ax):
@@ -157,6 +154,7 @@ def train(
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            ipdb.set_trace()
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
             loss = criterion(y_hat, y)

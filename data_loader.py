@@ -260,9 +260,10 @@ def test():
     for x, y in tqdm(train_loader):
         # print(f"{x.shape=}")
         # print(f"{y.shape=}")
-        assert (
-            x.shape[1] == 4 and y.shape[1] == 4
-        ), f"error, {x.shape=} {y.shape=}"
+        # assert (
+        #    x.shape[1] == 4 and y.shape[1] == 4
+        # ), f"error, {x.shape=} {y.shape=}"
+        assert y.tolist() != x.tolist(), f"error, these are the same! {i}"
         total_length += len(x)
         i += 1
     for x, y in tqdm(train_loader):
