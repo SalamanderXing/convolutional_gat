@@ -210,7 +210,7 @@ def preprocess(
     n_regions = len(os.listdir(in_path))
     print(f"{n_regions=}")
     metadata = {"n_regions": n_regions}
-    conditions = ["training", "validation", "test"]
+    conditions = ["training", "validation", "test"][2:]
     for condition in conditions:
         metadata[condition] = {"length": 0}
         log(f"Preprocessing {condition}")
@@ -267,10 +267,14 @@ def preprocess(
         )
         print("Saving stuff")
         for i, block in tqdm(tuple(enumerate(continuous_blocks))):
-            file_name = os.path.join(out_condition_path, f"{i}.pt")
             tensor_block = block_to_tensor(block)
-            t.save(tensor_block, file_name)
-            metadata[condition]["length"] += len(tensor_block)
+            if len(tensor_block) > 9:
+                file_name = os.path.join(out_condition_path, f"{i}.pt")
+                t.save(tensor_block, file_name)
+                metadata[condition]["length"] += len(tensor_block)
+            else:
+                print("Skipped tensor because it was too small")
+                print(len(tensor_block))
         print(f"Done {condition}")
     print("Writing metadata:")
     print(json.dumps(metadata, indent=4))

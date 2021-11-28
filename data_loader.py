@@ -61,9 +61,8 @@ class DataLoader:
         # print(f"{self.item_count=}")
 
     def __len__(self):
-        return self.total_length - (self.time_steps - 1) * (
-            len(self.files) + 1
-        )
+        tot = self.total_length - (self.time_steps - 1) * (len(self.files) + 1)
+        return tot // self.__batch_size
 
     def __batchify(self, data: t.Tensor) -> tuple[t.Tensor, t.Tensor]:
         result = (t.tensor([]), t.tensor([]))
@@ -227,9 +226,9 @@ def get_loaders(
         ),
         DataLoader(
             test_batch_size,
-            os.path.join(preprocessed_folder, "test"),
+            os.path.join(preprocessed_folder, "validation"),
             device,
-            total_length=metadata["test"]["length"],
+            total_length=metadata["validation"]["length"],
             task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
@@ -242,16 +241,17 @@ def test():
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=32,
         test_batch_size=100,
-        preprocessed_folder="/mnt/preprocessed",
+        preprocessed_folder="/mnt/preprocessed2",
         device=device,
         task=Task.predict_next,
         downsample_size=(16, 16),
     )
     i = 0
     total_length = 0
+    print(f"{len(train_loader)=}")
     for x, y in tqdm(train_loader):
-        print(f"{x.shape=}")
-        print(f"{y.shape=}")
+        # print(f"{x.shape=}")
+        # print(f"{y.shape=}")
         assert (
             x.shape[1] == 4 and y.shape[1] == 4
         ), f"error, {x.shape=} {y.shape=}"
