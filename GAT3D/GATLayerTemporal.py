@@ -29,7 +29,6 @@ class GATLayerTemporal(nn.Module):
         else:
             N, V, H, W = h.size()
 
-        
         self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
             self.W.device
         )  # added by Giulio
@@ -53,9 +52,7 @@ class GATLayerTemporal(nn.Module):
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(
-            t.diag(t.sum(adj_mat, axis=1)), requires_grad=False
-        )
+        D = Variable(t.diag(t.sum(adj_mat, axis=1)), requires_grad=False)
         D_12 = t.sqrt(t.inverse(D))
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
 
@@ -70,7 +67,7 @@ class GATLayerTemporal(nn.Module):
         h_prime = t.stack((Wh_))
         h_prime = h_prime.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
         h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(N, H, W, T, V)
-        #return F.elu(h_prime)
+        # return F.elu(h_prime)
         return t.sigmoid(F.elu(h_prime))
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
