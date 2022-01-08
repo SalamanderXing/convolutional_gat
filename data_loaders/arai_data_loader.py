@@ -11,11 +11,6 @@ import json
 # todo: fix the fist batch is empty
 
 
-@unique
-class Task(Enum):
-    predict_next = "predict_next"
-
-
 class DataLoader:
     def __init__(
         self,
@@ -25,7 +20,6 @@ class DataLoader:
         *,
         total_length: int,
         n_regions: int = 5,
-        task: Task = Task.predict_next,
         time_steps: int = 4,
         norm_max=None,
         norm_min=None,
@@ -38,7 +32,6 @@ class DataLoader:
         self.n_regions = n_regions
         self.downsample_size = downsample_size
         self.folder = folder
-        self.task = task
         self.device = device
         self.__is_first = True
         self.norm_max = norm_max
@@ -125,7 +118,8 @@ class DataLoader:
                 self.thread.start()
         # print(f"{result[0].shape=}")
         return self.fix_sizes(
-            current_batch[0].to(self.device), current_batch[1].to(self.device),
+            current_batch[0].to(self.device),
+            current_batch[1].to(self.device),
         )
 
     def __read_next_file(self) -> t.Tensor:
@@ -208,7 +202,6 @@ def get_loaders(
     preprocessed_folder: str,
     device,
     *,
-    task: Task,
     downsample_size: tuple[int, int] = (256, 256),
 ):
     with open(os.path.join(preprocessed_folder, "metadata.json")) as f:
@@ -219,7 +212,6 @@ def get_loaders(
             os.path.join(preprocessed_folder, "training"),
             device,
             total_length=metadata["training"]["length"],
-            task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
         ),
@@ -228,7 +220,6 @@ def get_loaders(
             os.path.join(preprocessed_folder, "validation"),
             device,
             total_length=metadata["validation"]["length"],
-            task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
         ),
@@ -237,7 +228,6 @@ def get_loaders(
             os.path.join(preprocessed_folder, "validation"),
             device,
             total_length=metadata["validation"]["length"],
-            task=task,
             downsample_size=downsample_size,
             n_regions=metadata["n_regions"],
         ),
@@ -251,7 +241,6 @@ def test():
         test_batch_size=100,
         preprocessed_folder="/mnt/preprocessed2",
         device=device,
-        task=Task.predict_next,
         downsample_size=(16, 16),
     )
     i = 0

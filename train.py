@@ -5,10 +5,9 @@ from tqdm import tqdm
 import json
 import ipdb
 from argparse import ArgumentParser
-from .data_loader import get_loaders
+from .data_loaders.get_loaders import get_loaders
 from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
-from .data_loader import Task
 
 # todo: add that it saves the best performing model
 
@@ -20,10 +19,12 @@ def plot_history(
     filename="train",
 ):
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -50,16 +51,21 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
 
 
 def visualize_predictions(
-    model, number_of_preds=1, path="", downsample_size=(256, 256)
+    model,
+    number_of_preds=1,
+    path="",
+    downsample_size=(256, 256),
+    preprocessed_folder: str = "",
+    dataset="kmni",
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     loader, _, _ = get_loaders(
         train_batch_size=1,
         test_batch_size=1,
-        preprocessed_folder="convolutional_gat/preprocessed",
+        preprocessed_folder=preprocessed_folder,
         device=device,
-        task=Task.predict_next,
         downsample_size=downsample_size,
+        dataset=dataset,
     )
     model = model.to(device)
     N_COLS = 4  # frames
@@ -98,7 +104,6 @@ def train(
     test_batch_size=100,
     epochs=10,
     lr=0.001,
-    task=Task.predict_next,
     lr_step=1,
     gamma=1.0,  # 1.0 means disabled
     plot=True,
@@ -106,6 +111,8 @@ def train(
     optimizer=None,
     downsample_size=(256, 256),
     output_path=".",
+    preprocessed_folder="",
+    dataset="kmni",
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -113,17 +120,6 @@ def train(
     #
     # device = t.device('cpu')
     model = model.to(device)
-    summary(
-        model,
-        input_size=(
-            train_batch_size,
-            downsample_size[0],
-            downsample_size[1],
-            4,
-            5,
-        ),
-        device=device,
-    )
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
@@ -137,9 +133,9 @@ def train(
         train_loader, val_loader, test_loader = get_loaders(
             train_batch_size=train_batch_size,
             test_batch_size=test_batch_size,
-            preprocessed_folder="convolutional_gat/preprocessed",
+            preprocessed_folder=preprocessed_folder,
             device=device,
-            task=task,
+            dataset=dataset,
             downsample_size=downsample_size,
         )
         # print(
@@ -192,6 +188,8 @@ def train(
         number_of_preds=1,
         path=output_path,
         downsample_size=downsample_size,
+        preprocessed_folder=preprocessed_folder,
+        dataset=dataset,
     )
     if plot:
         plot_history(history)

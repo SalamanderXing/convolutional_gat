@@ -8,6 +8,7 @@ from torch.autograd import Variable
 import ipdb
 from .unet import UNet
 
+
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
     def __init__(self, in_features, out_features, alpha, conv=False):
@@ -18,31 +19,31 @@ class GATLayerTemporal(nn.Module):
         self.W = nn.Parameter(t.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.conv = conv
+        self.is_conv = conv
         self.conv_net = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
-            N, H, W, T, V = h.size() # 32, 5, 35, 35, 4
+            N, H, W, T, V = h.size()  # 32, 5, 35, 35, 4
             h = h.permute(0, 4, 1, 2, 3)
         else:
             N, V, H, W = h.size()
 
-        if self.conv:
+        if self.is_conv:
             whs = []
             for i in range(H):
                 whi = conv_net(h[:, i, :, :, :])
                 whs.append(whi)
-            Wh = torch.cat(whs, axis=1)
+            Wh = t.cat(whs, axis=1)
         else:
-            Wh = torch.matmul(h, self.W)
+            Wh = t.matmul(h, self.W)
 
-        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(
+        self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
             self.W.device
         )  # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         if self.is_conv:
-            Wh = self.conv(h)
+            Wh = self.conv_net(h)
         else:
             # ipdb.set_trace()
             # Wh = torch.matmul(h.double(), self.W.double())
