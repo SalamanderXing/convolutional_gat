@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import ipdb
+
 # from .unet import UNet
 from .smaat_unet.SmaAt_UNet import SmaAt_UNet
 
@@ -22,7 +23,9 @@ class GATLayerTemporal(nn.Module):
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.is_conv = conv
         # self.conv_net = UNet(in_features, out_features)
-        self.conv_net = SmaAt_UNet(n_channels=in_features, n_classes=out_features)
+        self.conv_net = SmaAt_UNet(
+            n_channels=in_features, n_classes=out_features
+        )
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -34,7 +37,7 @@ class GATLayerTemporal(nn.Module):
         if self.is_conv:
             whs = []
             for i in range(H):
-                whi = conv_net(h[:, i, :, :, :])
+                whi = self.conv_net(h[:, i, :, :, :])
                 whs.append(whi)
             Wh = t.cat(whs, axis=1)
         else:
@@ -53,7 +56,7 @@ class GATLayerTemporal(nn.Module):
         #         whi = self.conv_net(h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
         #         whs.append(whi)
         #     Wh = t.cat(whs, axis=1)
-        
+
         if self.is_conv:
             Wh = self.conv_net(h)
         else:
