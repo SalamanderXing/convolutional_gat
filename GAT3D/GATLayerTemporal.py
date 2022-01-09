@@ -6,7 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import ipdb
-from .unet import UNet
+# from .unet import UNet
+from .smaat_unet.SmaAt_UNet import SmaAt_UNet
 
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
@@ -19,34 +20,32 @@ class GATLayerTemporal(nn.Module):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.conv = conv
-        self.conv_net = UNet(in_features, out_features)
+        # self.conv_net = UNet(in_features, out_features)
+        self.conv_net = SmaAt_UNet(n_channels=in_features, n_classes=out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
             N, H, W, T, V = h.size() # 32, 5, 35, 35, 4
-            h = h.permute(0, 4, 1, 2, 3)
+            h = h.permute(0, 4, 1, 2, 3) # 32, 4, 5, 35, 35
         else:
             N, V, H, W = h.size()
 
-        if self.conv:
-            whs = []
-            for i in range(H):
-                whi = conv_net(h[:, i, :, :, :])
-                whs.append(whi)
-            Wh = torch.cat(whs, axis=1)
-        else:
-            Wh = torch.matmul(h, self.W)
-
-        self.a = nn.Parameter(torch.empty(size=(2 * H * W, 1))).to(
+        self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
             self.W.device
         )  # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        if self.is_conv:
-            Wh = self.conv(h)
+
+        if self.conv:
+            whs = []
+            print(h.size())
+            for i in range(h.size()[2]):
+                print(h[:, :, i, :, :].size(), h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2).size())
+                whi = self.conv_net(h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
+                whs.append(whi)
+            Wh = t.cat(whs, axis=1)
         else:
-            # ipdb.set_trace()
-            # Wh = torch.matmul(h.double(), self.W.double())
             Wh = t.matmul(h, self.W)
+
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = t.matmul(a_input, self.a)
         e = self.leakyrelu(e.squeeze(-1))

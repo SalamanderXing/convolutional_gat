@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.model import TemporalModel, SpatialModel
+from convolutional_gat.model import TemporalModel
 from convolutional_gat.data_loader import Task
 
-MODEL = SpatialModel()
-EPOCHS = 6
+MODEL = TemporalModel(time_steps=4, conv=True)
+EPOCHS = 15
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 32
 LEARNING_RATE = 0.001
@@ -14,4 +14,4 @@ GAMMA = 1.0
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (256, 256)
+DOWNSAMPLE_SIZE = (100, 100)

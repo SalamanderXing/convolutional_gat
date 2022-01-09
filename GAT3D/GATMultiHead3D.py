@@ -5,16 +5,16 @@ from .GATLayerTemporal import GATLayerTemporal
 
 
 class GATMultiHead3D(nn.Module):
-    def __init__(self, nfeat, nhid, alpha, nheads, type_):
+    def __init__(self, nfeat, nhid, alpha, nheads, type_, conv=False):
         super().__init__()
         if type_ == "spatial":
             self.attentions = [
-                GATLayerSpatial(in_features=nfeat, out_features=nhid, alpha=alpha)
+                GATLayerSpatial(in_features=nfeat, out_features=nhid, alpha=alpha, conv=conv)
                 for _ in range(nheads)
             ]
         elif type_ == "temporal":
             self.attentions = [
-                GATLayerTemporal(in_features=nfeat, out_features=nhid, alpha=alpha)
+                GATLayerTemporal(in_features=nfeat, out_features=nhid, alpha=alpha, conv=conv)
                 for _ in range(nheads)
             ]
         else:

@@ -53,7 +53,7 @@ class GATLayerSpatial(nn.Module):
 
         Wh_ = []
         for i in range(V):
-            at = t.zeros(N, H, W, self.out_features)
+            at = t.zeros(N, H, W, self.out_features).to(self.W.device)
             for j in range(V):
                 at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(
                     3

@@ -9,6 +9,9 @@ __pycache__/
 *.zip
 data/
 preprocessed/
+preprocessed_trop/
+preprocessed_prec/
+
 # preprocessing
 preprocessed_data/
 
