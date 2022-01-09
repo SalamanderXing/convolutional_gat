@@ -19,12 +19,10 @@ def plot_history(
     filename="train",
 ):
     plt.plot(
-        history["train_loss"],
-        label="Train loss",
+        history["train_loss"], label="Train loss",
     )
     plt.plot(
-        history["val_loss"],
-        label="Val loss",
+        history["val_loss"], label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -129,6 +127,18 @@ def train(
     )
     history = {"train_loss": [], "val_loss": []}
     print(f"Using device: {device}")
+    train_loader, val_loader, test_loader = get_loaders(
+        train_batch_size=train_batch_size,
+        test_batch_size=test_batch_size,
+        preprocessed_folder=preprocessed_folder,
+        device=device,
+        dataset=dataset,
+        downsample_size=downsample_size,
+    )
+    test_loss = test(model, device, test_loader, "test")
+    history["val_loss"].append(test_loss)
+    history["train_loss"].append(1.0)
+    print(f"Test loss (without any training): {test_loss}")
     for epoch in range(epochs):
         train_loader, val_loader, test_loader = get_loaders(
             train_batch_size=train_batch_size,
@@ -150,6 +160,10 @@ def train(
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            if (x > 1).any() or (y > 1).any():
+                print(x[x > 1])
+                print(y[y > 1])
+                print("Auchh")
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
             loss = criterion(y_hat, y)
@@ -157,9 +171,13 @@ def train(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                t.sum((y_hat - y) ** 2)
-                / t.prod(t.tensor(y.shape[1:]).to(device))
-            ).cpu()
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
+                .detach()
+                .cpu()
+            )
 
         scheduler.step()
         train_loss = (running_loss / total_length).item()

@@ -33,6 +33,7 @@ class DataLoader:
         )
         self.remainder = self.__read_next_file()
         self.file_length = self.remainder.shape[0] * self.remainder.shape[1]
+        self.normalizing_constant = 270
 
     """
     def __len__(self) -> int:
@@ -51,15 +52,16 @@ class DataLoader:
 
     def __segmentify(self, data: t.Tensor) -> t.Tensor:
         data = data[: (len(data) // 8) * 8]
-        segments = t.stack(
-            tuple(
-                el
-                for el in tuple(
-                    data[i * 8 : (i + 1) * 8] for i in range(len(data) - 10)
+        try:
+            segments = t.stack(
+                tuple(
+                    el
+                    for el in tuple(data[i : i + 8] for i in range(len(data)))
+                    if len(el) == 8
                 )
-                if len(el) == 8
             )
-        )
+        except Exception:
+            ipdb.set_trace()
         """
         segments = data.view(
             -1, 8, data.shape[1], data.shape[2], data.shape[3]
@@ -80,13 +82,13 @@ class DataLoader:
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
         results = (
-                result[0].permute(0, 3, 4, 1, 2).float(),
-                result[1].permute(0, 3, 4, 1, 2).float()
+            result[0].permute(0, 3, 4, 1, 2) / self.normalizing_constant,
+            result[1].permute(0, 3, 4, 1, 2) / self.normalizing_constant,
         )
         if self.crop is not None:
             results = (
-                    results[0][:, :self.crop, :self.crop, :, :],
-                    results[1][:, :self.crop, :self.crop, :, :]
+                results[0][:, : self.crop, : self.crop, :, :],
+                results[1][:, : self.crop, : self.crop, :, :],
             )
         return results
 
@@ -99,14 +101,18 @@ def get_loaders(
     test_batch_size: int,
     data_folder: str,
     device,
-    crop: int = None
+    crop: int = None,
 ):
     train_loader = DataLoader(
-        train_batch_size, os.path.join(data_folder, 'train'), device, crop=crop
+        train_batch_size, os.path.join(data_folder, "train"), device, crop=crop
     )
 
-    val_loader = DataLoader(test_batch_size, os.path.join(data_folder, 'test'), device, crop=crop)
-    test_loader = DataLoader(test_batch_size, os.path.join(data_folder, 'test'), device, crop=crop)
+    val_loader = DataLoader(
+        test_batch_size, os.path.join(data_folder, "test"), device, crop=crop
+    )
+    test_loader = DataLoader(
+        test_batch_size, os.path.join(data_folder, "test"), device, crop=crop
+    )
     return train_loader, val_loader, test_loader
 
 

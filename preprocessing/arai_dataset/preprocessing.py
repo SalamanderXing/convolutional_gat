@@ -7,21 +7,11 @@ import numpy as np
 import torch as t
 from tqdm import tqdm
 
+from ..utils import listdir, mkdir
+
 # TODO: normalized data
 # TODO: get precipitation instead of temperature
 # TODO: implement blacklisting
-
-
-def listdir(path: str):
-    return [
-        (subpath, os.path.join(path, subpath))
-        for subpath in sorted(os.listdir(path))
-    ]
-
-
-def mkdir(path: str):
-    if not os.path.exists(path):
-        os.mkdir(path)
 
 
 class Logger:
