@@ -3,6 +3,7 @@ import getopt
 import os.path
 import pathlib
 import json
+import ipdb
 from .train import train
 
 
@@ -12,7 +13,17 @@ def generate_experiment(argv: list[str]):
     exp_path = current_dir + "/experiments/" + argv
     variables = {}
     exec(open(exp_path + "/config.py").read(), variables)
-
+    print(
+        json.dumps(
+            {
+                k: v
+                for k, v in variables.items()
+                if k.isupper() and not k.startswith("__")
+            },
+            indent=4,
+            default=str,
+        )
+    )
     model = variables["MODEL"]
     epochs = variables["EPOCHS"]
     train_batch_size = variables["TRAIN_BATCH_SIZE"]
