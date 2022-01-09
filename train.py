@@ -38,12 +38,13 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
         running_loss = t.tensor(0.0)
         total_length = 0
         for x, y in tqdm(val_test_loader):
-            y_hat = model(x)
-            running_loss += (
-                t.sum((y - y_hat) ** 2)
-                / t.prod(t.tensor(y.shape[1:]).to(device))
-            ).cpu()
-            total_length += len(x)
+            if len(x) > 1:
+                y_hat = model(x)
+                running_loss += (
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                ).cpu()
+                total_length += len(x)
     model.train()
     return (running_loss / total_length).item()
 
@@ -160,21 +161,24 @@ def train(
         for param_group in optimizer.param_groups:  # Print the updated LR
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
-            # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            optimizer.zero_grad()
-            y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y)
-            loss.backward()  # Update the gradients
-            optimizer.step()  # Adjust model parameters
-            total_length += len(x)
-            running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+            if len(x) > 1:
+                # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+                optimizer.zero_grad()
+                y_hat = model(
+                    x
+                )  # Implicitly calls the model's forward function
+                loss = criterion(y_hat, y)
+                loss.backward()  # Update the gradients
+                optimizer.step()  # Adjust model parameters
+                total_length += len(x)
+                running_loss += (
+                    (
+                        t.sum((y_hat - y) ** 2)
+                        / t.prod(t.tensor(y.shape[1:]).to(device))
+                    )
+                    .detach()
+                    .cpu()
                 )
-                .detach()
-                .cpu()
-            )
 
         scheduler.step()
         train_loss = (running_loss / total_length).item()
