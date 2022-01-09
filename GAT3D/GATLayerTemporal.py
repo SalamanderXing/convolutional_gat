@@ -28,24 +28,30 @@ class GATLayerTemporal(nn.Module):
         if len(h.size()) == 5:
             N, H, W, T, V = h.size()  # 32, 5, 35, 35, 4
             h = h.permute(0, 4, 1, 2, 3)
+            # print("five", H)
         else:
+            # print("not five")
             N, V, H, W = h.size()
 
+        # print("=======", h.size())
         if self.is_conv:
             whs = []
-            for i in range(H):
-                whi = conv_net(h[:, i, :, :, :])
+            for i in range(V):
+                # print(i, h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2).size(), "111111111")
+                whi = self.conv_net(h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2))
                 whs.append(whi)
-            Wh = t.cat(whs, axis=1)
+            Wh = t.stack(whs).permute(1, 0, 3, 4, 2)
         else:
             Wh = t.matmul(h, self.W)
+
+        # print("***********", Wh.size())
 
         self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
             self.W.device
         )  # added by Giulio
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
 
-        # if self.conv:
+        # if self.is_conv:
         #     whs = []
         #     print(h.size())
         #     for i in range(h.size()[2]):
@@ -53,11 +59,11 @@ class GATLayerTemporal(nn.Module):
         #         whi = self.conv_net(h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
         #         whs.append(whi)
         #     Wh = t.cat(whs, axis=1)
-        
-        if self.is_conv:
-            Wh = self.conv_net(h)
-        else:
-            Wh = t.matmul(h, self.W)
+
+        # if self.is_conv:
+        #     Wh = self.conv_net(h)
+        # else:
+        #     Wh = t.matmul(h, self.W)
 
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = t.matmul(a_input, self.a)
