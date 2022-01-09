@@ -81,7 +81,7 @@ def visualize_predictions(
                     col.imshow(y.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
                 else:
                     col.imshow(
-                        preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0]
+                        1 - preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0]
                     )
 
         row_labels = ["x", "y", "preds"]
@@ -111,6 +111,7 @@ def train(
     output_path=".",
     preprocessed_folder="",
     dataset="kmni",
+    conv=False,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -160,10 +161,6 @@ def train(
             print(f"LR: {param_group['lr']}")
         for x, y in tqdm(train_loader):
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-            if (x > 1).any() or (y > 1).any():
-                print(x[x > 1])
-                print(y[y > 1])
-                print("Auchh")
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
             loss = criterion(y_hat, y)
