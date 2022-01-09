@@ -18,7 +18,8 @@ def generate_experiment(argv: list[str]):
     train_batch_size = variables["TRAIN_BATCH_SIZE"]
     test_batch_size = variables["TEST_BATCH_SIZE"]
     learning_rate = variables["LEARNING_RATE"]
-    task = variables["TASK"]
+    preprocessed_folder = variables["PREPROCESSED_FOLDER"]
+    dataset = variables["DATASET"]
     lr_step = variables["LR_STEP"]
     gamma = variables["GAMMA"]
     plot = variables["PLOT"]
@@ -32,14 +33,15 @@ def generate_experiment(argv: list[str]):
         test_batch_size=test_batch_size,
         epochs=epochs,
         lr=learning_rate,
-        task=task,
         lr_step=lr_step,
         gamma=gamma,
         plot=plot,
         criterion=criterion,
         optimizer=optimizer,
         downsample_size=downsample_size,
-        output_path=exp_path
+        output_path=exp_path,
+        preprocessed_folder=preprocessed_folder,
+        dataset=dataset,
     )
 
 
