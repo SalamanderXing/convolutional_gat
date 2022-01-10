@@ -198,10 +198,15 @@ def train(
         dataset=dataset,
         downsample_size=downsample_size,
     )
-    test_loss = test(model, device, train_loader, "test")
-    history["val_loss"].append(test_loss)
-    history["train_loss"].append(1.0)
+
+    test_loss = test(model, device, test_loader, "test")
     print(f"Test loss (without any training): {test_loss}")
+    history["val_loss"].append(test_loss)
+
+    train_loss = test(model, device, train_loader, "test")
+    print(f"Train loss (without any training): {train_loss}")
+    history["train_loss"].append(train_loss)
+
     for epoch in range(1, epochs + 1):
         train_single_epoch(
             epoch,
