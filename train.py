@@ -76,6 +76,7 @@ def visualize_predictions(
         to_plot = [x[0], y[0], preds[0]]
         for i, row in enumerate(ax):
             for j, col in enumerate(row):
+                ipdb.set_trace()
                 col.imshow(
                     to_plot[i].cpu().detach().numpy().squeeze(0)[:, :, j, 0]
                 )
