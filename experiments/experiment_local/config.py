@@ -3,9 +3,9 @@ import torch.nn as nn
 from convolutional_gat.model import TemporalModel
 
 MODEL = TemporalModel()
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/new_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/50_preprocessed"
 DATASET = "kmni"
-EPOCHS = 5
+EPOCHS = 10
 TRAIN_BATCH_SIZE = 10
 TEST_BATCH_SIZE = 10
 LEARNING_RATE = 0.001

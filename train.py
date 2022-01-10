@@ -79,7 +79,7 @@ def visualize_predictions(
         to_plot = [x[0], y[0], preds[0]]
         for i, row in enumerate(ax):
             for j, col in enumerate(row):
-                col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 0])
+                col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
 
         row_labels = ["x", "y", "preds"]
         for ax_, row in zip(ax[:, 0], row_labels):
@@ -175,7 +175,7 @@ def train(
     preprocessed_folder="",
     dataset="kmni",
     conv=False,
-    test_first=False,
+    test_first=True,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -233,15 +233,15 @@ def train(
             preprocessed_folder=preprocessed_folder,
             dataset=dataset,
         )
+        plot_history(
+            history,
+            title="Training History",
+            save=True,
+            filename=output_path + "/train.png",
+        )
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
 
-    plot_history(
-        history,
-        title="Training History",
-        save=True,
-        filename=output_path + "/train.png",
-    )
     if plot:
         plot_history(history)
     return history, test_loss
