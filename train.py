@@ -17,8 +17,9 @@ def plot_history(
     history: dict[str, list[float]],
     title: str = "Training History",
     save=False,
-    filename="train",
+    filename="history",
 ):
+    plt.clf()
     plt.plot(
         history["train_loss"],
         label="Train loss",
@@ -54,12 +55,13 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
 
 def visualize_predictions(
     model,
-    name="results_viz.png",
+    epoch=1,
     path="",
     downsample_size=(256, 256),
     preprocessed_folder: str = "",
     dataset="kmni",
 ):
+    plt.clf()
     with t.no_grad():
         device = t.device("cuda" if t.cuda.is_available() else "cpu")
         loader, _, _ = get_loaders(
@@ -74,6 +76,7 @@ def visualize_predictions(
         N_COLS = 4  # frames
         N_ROWS = 3  # x, y, preds
         _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
+        plt.title(f"Epoch {epoch}")
         for x, y in loader:
             # x, y = x[:number_of_preds], y[:number_of_preds]
             for k in range(len(x)):
@@ -95,7 +98,7 @@ def visualize_predictions(
                     for ax_, col in zip(ax[0, :], col_labels):
                         ax_.set_title(col)
 
-                    plt.savefig(os.path.join(path, name))
+                    plt.savefig(os.path.join(path, f"pred_{epoch}.png"))
                     model.train()
                     return
 
@@ -235,7 +238,7 @@ def train(
         )
         visualize_predictions(
             model,
-            name=f"epoch_{epoch}_pred.png",
+            epoch=epoch,
             path=output_path,
             downsample_size=downsample_size,
             preprocessed_folder=preprocessed_folder,
@@ -245,7 +248,7 @@ def train(
             history,
             title="Training History",
             save=True,
-            filename=output_path + "/train.png",
+            filename=output_path + "/history.png",
         )
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
