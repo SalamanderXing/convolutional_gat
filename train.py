@@ -19,10 +19,12 @@ def plot_history(
     filename="train",
 ):
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -76,10 +78,7 @@ def visualize_predictions(
         to_plot = [x[0], y[0], preds[0]]
         for i, row in enumerate(ax):
             for j, col in enumerate(row):
-                ipdb.set_trace()
-                col.imshow(
-                    to_plot[i].cpu().detach().numpy().squeeze(0)[:, :, j, 0]
-                )
+                col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 0])
 
         row_labels = ["x", "y", "preds"]
         for ax_, row in zip(ax[:, 0], row_labels):
@@ -91,6 +90,72 @@ def visualize_predictions(
 
         plt.savefig(path + "/results_viz.png")
         break
+
+
+def train_single_epoch(
+    epoch: int,
+    optimizer,
+    criterion,
+    scheduler,
+    model,
+    train_batch_size,
+    test_batch_size,
+    preprocessed_folder,
+    device,
+    dataset,
+    downsample_size,
+    history,
+    output_path,
+):
+    train_loader, val_loader, test_loader = get_loaders(
+        train_batch_size=train_batch_size,
+        test_batch_size=test_batch_size,
+        preprocessed_folder=preprocessed_folder,
+        device=device,
+        dataset=dataset,
+        downsample_size=downsample_size,
+    )
+    # print(
+    #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+    # )
+
+    model.train()
+    print(f"\nEpoch: {epoch}")
+    running_loss = t.tensor(0.0)
+    total_length = 0
+    for param_group in optimizer.param_groups:  # Print the updated LR
+        print(f"LR: {param_group['lr']}")
+    for x, y in tqdm(train_loader):
+        if len(x) > 1:
+            # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            optimizer.zero_grad()
+            y_hat = model(x)  # Implicitly calls the model's forward function
+            loss = criterion(y_hat, y)
+            loss.backward()  # Update the gradients
+            optimizer.step()  # Adjust model parameters
+            total_length += len(x)
+            running_loss += (
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
+                .detach()
+                .cpu()
+            )
+
+    scheduler.step()
+    train_loss = (running_loss / total_length).item()
+    print(f"Train loss: {round(train_loss, 6)}")
+    val_loss = test(model, device, val_loader)
+    print(f"Val loss: {round(val_loss, 6)}")
+    history["train_loss"].append(train_loss)
+    history["val_loss"].append(val_loss)
+    with open(output_path + "/history.json", "w") as f:
+        json.dump(history, f)
+    if len(history["val_loss"]) > 1 and val_loss < min(
+        history["val_loss"][:-1]
+    ):
+        t.save(model.state_dict(), output_path + "/model.pt")
 
 
 def train(
@@ -133,62 +198,26 @@ def train(
         dataset=dataset,
         downsample_size=downsample_size,
     )
-    test_loss = test(model, device, test_loader, "test")
+    test_loss = test(model, device, train_loader, "test")
     history["val_loss"].append(test_loss)
     history["train_loss"].append(1.0)
     print(f"Test loss (without any training): {test_loss}")
-    for epoch in range(epochs):
-        train_loader, val_loader, test_loader = get_loaders(
-            train_batch_size=train_batch_size,
-            test_batch_size=test_batch_size,
-            preprocessed_folder=preprocessed_folder,
-            device=device,
-            dataset=dataset,
-            downsample_size=downsample_size,
+    for epoch in range(1, epochs + 1):
+        train_single_epoch(
+            epoch,
+            optimizer,
+            criterion,
+            scheduler,
+            model,
+            train_batch_size,
+            test_batch_size,
+            preprocessed_folder,
+            device,
+            dataset,
+            downsample_size,
+            history,
+            output_path,
         )
-        # print(
-        #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
-        # )
-
-        model.train()
-        print(f"\nEpoch: {epoch + 1}")
-        running_loss = t.tensor(0.0)
-        total_length = 0
-        for param_group in optimizer.param_groups:  # Print the updated LR
-            print(f"LR: {param_group['lr']}")
-        for x, y in tqdm(train_loader):
-            if len(x) > 1:
-                # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-                optimizer.zero_grad()
-                y_hat = model(
-                    x
-                )  # Implicitly calls the model's forward function
-                loss = criterion(y_hat, y)
-                loss.backward()  # Update the gradients
-                optimizer.step()  # Adjust model parameters
-                total_length += len(x)
-                running_loss += (
-                    (
-                        t.sum((y_hat - y) ** 2)
-                        / t.prod(t.tensor(y.shape[1:]).to(device))
-                    )
-                    .detach()
-                    .cpu()
-                )
-
-        scheduler.step()
-        train_loss = (running_loss / total_length).item()
-        print(f"Train loss: {round(train_loss, 6)}")
-        val_loss = test(model, device, val_loader)
-        print(f"Val loss: {round(val_loss, 6)}")
-        history["train_loss"].append(train_loss)
-        history["val_loss"].append(val_loss)
-        with open(output_path + "/history.json", "w") as f:
-            json.dump(history, f)
-        if len(history["val_loss"]) > 1 and val_loss < min(
-            history["val_loss"][:-1]
-        ):
-            t.save(model.state_dict(), output_path + "/model.pt")
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
 
