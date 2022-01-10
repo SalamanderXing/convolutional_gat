@@ -59,8 +59,8 @@ def visualize_predictions(
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     loader, _, _ = get_loaders(
-        train_batch_size=1,
-        test_batch_size=1,
+        train_batch_size=2,
+        test_batch_size=2,
         preprocessed_folder=preprocessed_folder,
         device=device,
         downsample_size=downsample_size,
@@ -71,19 +71,14 @@ def visualize_predictions(
     N_ROWS = 3  # x, y, preds
     _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
     for x, y in loader:
-        x, y = x[:number_of_preds], y[:number_of_preds]
+        # x, y = x[:number_of_preds], y[:number_of_preds]
         preds = model(x)
-
+        to_plot = [x[0], y[0], preds[0]]
         for i, row in enumerate(ax):
             for j, col in enumerate(row):
-                if i == 0:
-                    col.imshow(x.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
-                elif i == 1:
-                    col.imshow(y.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
-                else:
-                    col.imshow(
-                        1 - preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0]
-                    )
+                col.imshow(
+                    to_plot[i].cpu().detach().numpy().squeeze(0)[:, :, j, 0]
+                )
 
         row_labels = ["x", "y", "preds"]
         for ax_, row in zip(ax[:, 0], row_labels):

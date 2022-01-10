@@ -5,7 +5,7 @@ from convolutional_gat.model import TemporalModel
 MODEL = TemporalModel()
 PREPROCESSED_FOLDER = "/mnt/kmni_dataset/new_preprocessed"
 DATASET = "kmni"
-EPOCHS = 5
+EPOCHS = 1
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 64
 LEARNING_RATE = 0.001
