@@ -183,6 +183,7 @@ def train(
     #
     # device = t.device('cpu')
     model = model.to(device)
+    print(f"Using conv model: {model.is_conv}")
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()

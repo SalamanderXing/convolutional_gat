@@ -20,13 +20,23 @@ class SpatialModel(nn.Module):
 
 
 class TemporalModel(nn.Module):
-    def __init__(self, time_steps: int = 4, conv=True):
+    def __init__(self, time_steps: int = 4, conv=False):
         super().__init__()
+        self.is_conv = conv
         self.hidden_layer = GATMultiHead3D(
-            nfeat=time_steps, nhid=time_steps, alpha=0.2, nheads=1, type_="temporal", conv=conv
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="temporal",
+            conv=conv,
         )
         self.output_layer = GATMultiHead3D(
-            nfeat=time_steps, nhid=time_steps, alpha=0.2, nheads=1, type_="temporal"
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="temporal",
         )
 
     def forward(self, x):
