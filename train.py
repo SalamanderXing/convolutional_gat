@@ -60,37 +60,44 @@ def visualize_predictions(
     preprocessed_folder: str = "",
     dataset="kmni",
 ):
-    device = t.device("cuda" if t.cuda.is_available() else "cpu")
-    loader, _, _ = get_loaders(
-        train_batch_size=2,
-        test_batch_size=2,
-        preprocessed_folder=preprocessed_folder,
-        device=device,
-        downsample_size=downsample_size,
-        dataset=dataset,
-    )
-    model = model.to(device)
-    N_COLS = 4  # frames
-    N_ROWS = 3  # x, y, preds
-    _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
-    for x, y in loader:
-        # x, y = x[:number_of_preds], y[:number_of_preds]
-        preds = model(x)
-        to_plot = [x[0], y[0], preds[0]]
-        for i, row in enumerate(ax):
-            for j, col in enumerate(row):
-                col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
+    with t.no_grad():
+        device = t.device("cuda" if t.cuda.is_available() else "cpu")
+        loader, _, _ = get_loaders(
+            train_batch_size=2,
+            test_batch_size=2,
+            preprocessed_folder=preprocessed_folder,
+            device=device,
+            downsample_size=downsample_size,
+            dataset=dataset,
+        )
+        model.eval()
+        N_COLS = 4  # frames
+        N_ROWS = 3  # x, y, preds
+        _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
+        for x, y in loader:
+            # x, y = x[:number_of_preds], y[:number_of_preds]
+            for k in range(len(x)):
+                raininess = t.sum(x[k] != 0) / t.prod(t.tensor(x[k].shape))
+                if raininess >= 0.5:
+                    preds = model(x)
+                    to_plot = [x[k], y[k], preds[k]]
+                    for i, row in enumerate(ax):
+                        for j, col in enumerate(row):
+                            col.imshow(
+                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
+                            )
 
-        row_labels = ["x", "y", "preds"]
-        for ax_, row in zip(ax[:, 0], row_labels):
-            ax_.set_ylabel(row)
+                    row_labels = ["x", "y", "preds"]
+                    for ax_, row in zip(ax[:, 0], row_labels):
+                        ax_.set_ylabel(row)
 
-        col_labels = ["frame1", "frame2", "frame3", "frame4"]
-        for ax_, col in zip(ax[0, :], col_labels):
-            ax_.set_title(col)
+                    col_labels = ["frame1", "frame2", "frame3", "frame4"]
+                    for ax_, col in zip(ax[0, :], col_labels):
+                        ax_.set_title(col)
 
-        plt.savefig(os.path.join(path, name))
-        break
+                    plt.savefig(os.path.join(path, name))
+                    model.train()
+                    return
 
 
 def train_single_epoch(

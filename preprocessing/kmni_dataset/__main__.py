@@ -72,6 +72,7 @@ def preprocess(
                 raininess = 1 - t.sum(content == 0) / t.prod(
                     t.tensor(content.shape)
                 )
+                ipdb.set_trace()
                 if raininess >= rain_threshold:
                     acc.append(content)
                 elif len(acc) >= 8:
