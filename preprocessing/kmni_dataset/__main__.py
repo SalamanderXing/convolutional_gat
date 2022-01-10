@@ -72,7 +72,7 @@ def preprocess(
                 raininess = 1 - t.sum(content == 0) / t.prod(
                     t.tensor(content.shape)
                 )
-                if raininess >= 0.2:
+                if raininess >= rain_threshold:
                     acc.append(content)
                 elif len(acc) >= 8:
                     tensorized_acc = t.stack(acc)
@@ -138,10 +138,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("-i", "--in-dir", type=str)
     parser.add_argument("-o", "--out-dir", type=str)
+    parser.add_argument('-r', '--rain-threshold', type=float, default=0.5)
+    parser.add_argument('-y', '--from-year', type=int, default=2016)
     args = parser.parse_args()
+    assert args.rain_threshold <= 1, '--rain-threshold must be <= 1'
     print(json.dumps(args.__dict__, indent=4))
     if args.action == "preprocess":
-        preprocess(args.in_dir, args.out_dir)
+        preprocess(args.in_dir, args.out_dir, args.from_year, args.rain_threshold)
         test_split(args.out_dir)
     elif args.action == "test-split":
         test_split(args.out_dir)

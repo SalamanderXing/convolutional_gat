@@ -1,6 +1,7 @@
 import torch as t
 import torch.nn as nn
 from torchinfo import summary
+import os
 from tqdm import tqdm
 import json
 import ipdb
@@ -53,7 +54,7 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
 
 def visualize_predictions(
     model,
-    number_of_preds=1,
+    name="results_viz.png",
     path="",
     downsample_size=(256, 256),
     preprocessed_folder: str = "",
@@ -88,7 +89,7 @@ def visualize_predictions(
         for ax_, col in zip(ax[0, :], col_labels):
             ax_.set_title(col)
 
-        plt.savefig(path + "/results_viz.png")
+        plt.savefig(os.path.join(path, name))
         break
 
 
@@ -174,6 +175,7 @@ def train(
     preprocessed_folder="",
     dataset="kmni",
     conv=False,
+    test_first=False,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -198,14 +200,14 @@ def train(
         dataset=dataset,
         downsample_size=downsample_size,
     )
+    if test_first:
+        test_loss = test(model, device, test_loader, "test")
+        print(f"Test loss (without any training): {test_loss}")
+        history["val_loss"].append(test_loss)
 
-    test_loss = test(model, device, test_loader, "test")
-    print(f"Test loss (without any training): {test_loss}")
-    history["val_loss"].append(test_loss)
-
-    train_loss = test(model, device, train_loader, "test")
-    print(f"Train loss (without any training): {train_loss}")
-    history["train_loss"].append(train_loss)
+        train_loss = test(model, device, train_loader, "test")
+        print(f"Train loss (without any training): {train_loss}")
+        history["train_loss"].append(train_loss)
 
     for epoch in range(1, epochs + 1):
         train_single_epoch(
@@ -223,6 +225,14 @@ def train(
             history,
             output_path,
         )
+        visualize_predictions(
+            model,
+            name=f"epoch_{epoch}_pred.png",
+            path=output_path,
+            downsample_size=downsample_size,
+            preprocessed_folder=preprocessed_folder,
+            dataset=dataset,
+        )
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
 
@@ -231,14 +241,6 @@ def train(
         title="Training History",
         save=True,
         filename=output_path + "/train.png",
-    )
-    visualize_predictions(
-        model,
-        number_of_preds=1,
-        path=output_path,
-        downsample_size=downsample_size,
-        preprocessed_folder=preprocessed_folder,
-        dataset=dataset,
     )
     if plot:
         plot_history(history)
