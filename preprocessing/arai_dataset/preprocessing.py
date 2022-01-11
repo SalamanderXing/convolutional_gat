@@ -76,9 +76,7 @@ def nested_tensor_list_to_tensor(nested) -> t.Tensor:
         return t.tensor([])
     if type(nested[0]) in (list, tuple):
         flattened = [nested_tensor_list_to_tensor(n) for n in nested]
-        flattened = [
-            f for f in flattened if len(f.shape) > 1 and f.shape[1] > 0
-        ]
+        flattened = [f for f in flattened if len(f.shape) > 1 and f.shape[1] > 0]
         return (
             (
                 t.stack(fix_sizes(flattened))
@@ -113,9 +111,7 @@ def merge_days(
                     new_days_acc.append([])
                 merge(new_days_acc, days_acc[day])
             fixed_acc[region][var] = [
-                merged_files
-                for merged_files in new_days_acc
-                if len(merged_files) > 0
+                merged_files for merged_files in new_days_acc if len(merged_files) > 0
             ]
     return fixed_acc
 
@@ -137,9 +133,7 @@ def split_continuous_blocks_at_root(
     return new_accumulator
 
 
-def block_to_tensor(
-    block: dict[str, dict[tuple[str, str], list[str]]]
-) -> t.Tensor:
+def block_to_tensor(block: dict[str, dict[tuple[str, str], list[str]]]) -> t.Tensor:
     accumulator = []
     for _, var_acc in block.items():
         region_accumulator = []
@@ -157,12 +151,8 @@ def block_to_tensor(
                 array = masked_array.filled(
                     (np.max(valid_range) - np.min(valid_range)) / 2
                 )
-                scale_factor = (
-                    fc.scale_factor if "scale_factor" in fc.__dict__ else 1
-                )
-                add_offset = (
-                    fc.add_offset if "add_offset" in fc.__dict__ else 0
-                )
+                scale_factor = fc.scale_factor if "scale_factor" in fc.__dict__ else 1
+                add_offset = fc.add_offset if "add_offset" in fc.__dict__ else 0
                 normalized_array = (
                     (array / (np.max(valid_range) * scale_factor)) - add_offset
                 ).astype(np.float32)
@@ -216,9 +206,7 @@ def preprocess(
         for day in tqdm(days):
             for rel_region_path, region_path in listdir(in_path):
                 if rel_region_path not in accumulator:
-                    accumulator[rel_region_path] = {
-                        var: {} for var in select_variables
-                    }
+                    accumulator[rel_region_path] = {var: {} for var in select_variables}
                 region_accumulator = accumulator[rel_region_path]
                 for variable_folder, variable_name in select_variables:
                     in_variable_path = os.path.join(
@@ -254,9 +242,7 @@ def preprocess(
                 ), "wrong shape"
                 t.save(tensorized_accumulator, file_name)
             """
-        continuous_blocks = split_continuous_blocks_at_root(
-            merge_days(accumulator)
-        )
+        continuous_blocks = split_continuous_blocks_at_root(merge_days(accumulator))
         print("Saving stuff")
         for i, block in tqdm(tuple(enumerate(continuous_blocks))):
             tensor_block = block_to_tensor(block)

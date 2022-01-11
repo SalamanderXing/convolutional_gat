@@ -34,6 +34,7 @@ def plot_history(
         plt.savefig(filename)
     else:
         plt.show()
+    plt.close()
 
 
 def test(model: nn.Module, device, val_test_loader, label="val"):
@@ -45,8 +46,7 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
     model.train()
@@ -75,8 +75,8 @@ def visualize_predictions(
         model.eval()
         N_COLS = 4  # frames
         N_ROWS = 3  # x, y, preds
-        _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
         plt.title(f"Epoch {epoch}")
+        _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
         for x, y in loader:
             # x, y = x[:number_of_preds], y[:number_of_preds]
             for k in range(len(x)):
@@ -86,9 +86,7 @@ def visualize_predictions(
                     to_plot = [x[k], y[k], preds[k]]
                     for i, row in enumerate(ax):
                         for j, col in enumerate(row):
-                            col.imshow(
-                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
-                            )
+                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
 
                     row_labels = ["x", "y", "preds"]
                     for ax_, row in zip(ax[:, 0], row_labels):
@@ -99,6 +97,7 @@ def visualize_predictions(
                         ax_.set_title(col)
 
                     plt.savefig(os.path.join(path, f"pred_{epoch}.png"))
+                    plt.close()
                     model.train()
                     return
 
@@ -146,10 +145,7 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                )
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
                 .detach()
                 .cpu()
             )
@@ -163,14 +159,15 @@ def train_single_epoch(
     history["val_loss"].append(val_loss)
     with open(output_path + "/history.json", "w") as f:
         json.dump(history, f)
-    if len(history["val_loss"]) > 1 and val_loss < min(
-        history["val_loss"][:-1]
-    ):
+    if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
         t.save(model.state_dict(), output_path + "/model.pt")
 
 
 def train(
-    model,
+    *,
+    model_class,
+    optimizer_class,
+    mapping_type,
     train_batch_size=1,
     test_batch_size=100,
     epochs=10,
@@ -179,12 +176,10 @@ def train(
     gamma=1.0,  # 1.0 means disabled
     plot=True,
     criterion=nn.MSELoss(),
-    optimizer=None,
     downsample_size=(256, 256),
     output_path=".",
     preprocessed_folder="",
     dataset="kmni",
-    conv=False,
     test_first=True,
 ):
     device = t.device(
@@ -192,15 +187,10 @@ def train(
     )  # Select the GPU device, if there is one available.
     #
     # device = t.device('cpu')
-    model = model.to(device)
-    print(f"Using conv model: {model.is_conv}")
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
     history = {"train_loss": [], "val_loss": []}
     print(f"Using device: {device}")
     train_loader, val_loader, test_loader = get_loaders(
@@ -211,6 +201,18 @@ def train(
         dataset=dataset,
         downsample_size=downsample_size,
     )
+    for x, y in val_loader:
+        B, image_width, image_height, steps, n_vertices = x.shape
+        break
+    model = model_class(
+        image_width=image_width,
+        image_height=image_height,
+        n_vertices=n_vertices,
+        mapping_type=mapping_type,
+    ).to(device)
+    optimizer = optimizer_class(model.parameters(), lr=lr)
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    print(f"Using mapping: {model.mapping_type}")
     if test_first:
         test_loss = test(model, device, test_loader, "test")
         print(f"Test loss (without any training): {test_loss}")

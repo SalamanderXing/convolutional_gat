@@ -7,19 +7,30 @@ from .unet import UNet
 
 
 class GATLayerSpatial(nn.Module):
-    def __init__(self, in_features, out_features, alpha, conv=False):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        alpha,
+        *,
+        image_width: int,
+        image_height: int,
+        n_vertices: int,
+        mapping_type="linear"
+    ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(
-            t.empty(size=(in_features, out_features))
-        )  # [4, 4]
+        self.W = nn.Parameter(t.empty(size=(in_features, out_features)))  # [4, 4]
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.a = nn.Parameter(t.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.is_conv = conv
+        self.B = nn.Parameter(t.zeros(n_vertices, n_vertices) + 1e-6)
+        self.A = Variable(t.eye(n_vertices), requires_grad=False)
+
         if self.is_conv:
             self.conv = UNet(in_features, out_features)
 
@@ -29,6 +40,9 @@ class GATLayerSpatial(nn.Module):
             h = h.permute(0, 4, 1, 2, 3)
         else:
             N, V, H, W = h.size()
+
+        if self.A.device != self.B.device:
+            self.A = self.A.to(self.device)
 
         if self.is_conv:
             Wh = self.conv(h)
@@ -41,8 +55,6 @@ class GATLayerSpatial(nn.Module):
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.B = nn.Parameter(t.zeros(V, V) + 1e-6).to(self.W.device)
-        self.A = Variable(t.eye(V), requires_grad=False).to(self.W.device)
         adj_mat = self.B[:, :] + self.A[:, :]
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
@@ -55,9 +67,9 @@ class GATLayerSpatial(nn.Module):
         for i in range(V):
             at = t.zeros(N, H, W, self.out_features).to(self.W.device)
             for j in range(V):
-                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(
-                    3
-                ).repeat(1, 1, 1, self.out_features)
+                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
+                    1, 1, 1, self.out_features
+                )
             Wh_.append(at)
 
         h_prime = t.stack((Wh_))

@@ -195,7 +195,10 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
 
         self.rnn = nn.LSTM(
-            input_size=40, hidden_size=10, num_layers=1, batch_first=True,
+            input_size=40,
+            hidden_size=10,
+            num_layers=1,
+            batch_first=True,
         )
 
         self.out = nn.Linear(10, 3)

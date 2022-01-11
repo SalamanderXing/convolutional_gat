@@ -130,18 +130,14 @@ class DataLoader:
         #    tensor.shape[1] < 5
         # ):  # TODO: some files have apparently only 5 in the second dimension, could mean there is a bug in the preprocessing or the data is not perfect
         # while tensor.shape[1] < 5:
-        tensor = t.load(
-            os.path.join(self.folder, f"{self.files[self.file_index]}")
-        )
+        tensor = t.load(os.path.join(self.folder, f"{self.files[self.file_index]}"))
         # assert (
         #    tensor.shape[1] == self.n_regions
         # ), f"Found a tensor that is not of the right shape {tensor.shape=}"
         # print(f"{tensor.shape=}")
         # if len(tensor.shape) > 5:
         #    ipdb.set_trace()
-        tensor = tensor[
-            :, :, :, : self.downsample_size[0], : self.downsample_size[1]
-        ]
+        tensor = tensor[:, :, :, : self.downsample_size[0], : self.downsample_size[1]]
         # print(f"{tensor.shape=}")
         # if tensor.shape[1] < 5:
         # print("skipping")
@@ -258,9 +254,7 @@ def test():
     for x, y in tqdm(train_loader):
         # print(f"{x.shape=}")
         # print(f"{y.shape=}")
-        assert (
-            x.shape[1] == 4 and y.shape[1] == 4
-        ), f"error, {x.shape=} {y.shape=}"
+        assert x.shape[1] == 4 and y.shape[1] == 4, f"error, {x.shape=} {y.shape=}"
         total_length += len(x)
         i += 1
     print(f"{total_length=}")
