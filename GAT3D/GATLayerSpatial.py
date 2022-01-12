@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from .unet import UNet
+from .GAT_mappings import LinearMapping, SmaAt_UNetMapping, ConvMapping
 
 
 class GATLayerSpatial(nn.Module):
@@ -27,12 +28,23 @@ class GATLayerSpatial(nn.Module):
         self.a = nn.Parameter(t.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.is_conv = conv
+        # self.is_conv = conv
         self.B = nn.Parameter(t.zeros(n_vertices, n_vertices) + 1e-6)
         self.A = Variable(t.eye(n_vertices), requires_grad=False)
 
-        if self.is_conv:
-            self.conv = UNet(in_features, out_features)
+        self.mapping_type = mapping_type
+        if self.mapping_type == "linear":
+            mappingClass = LinearMapping
+        elif self.mapping_type == "smaat_unet":
+            mappingClass = SmaAt_UNetMapping
+        elif self.mapping_type == "conv":
+            mappingClass = ConvMapping
+        else:
+            raise TypeError(f"Mapping type not supported: {self.type}")
+        self.mapping = mappingClass(in_features, out_features)
+
+        # if self.is_conv:
+        #     self.conv = UNet(in_features, out_features)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -42,12 +54,15 @@ class GATLayerSpatial(nn.Module):
             N, V, H, W = h.size()
 
         if self.A.device != self.B.device:
-            self.A = self.A.to(self.device)
+            self.A = self.A.to(self.B.device)
 
-        if self.is_conv:
-            Wh = self.conv(h)
-        else:
-            Wh = t.matmul(h, self.W)
+        Wh = self.mapping(h)
+
+        # if self.is_conv:
+        #     Wh = self.conv(h)
+        # else:
+        #     Wh = t.matmul(h, self.W)
+
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = t.matmul(a_input, self.a)
         e = self.leakyrelu(e.squeeze(-1))
