@@ -1,6 +1,7 @@
 import torch as t
 import torch.nn as nn
 from torchinfo import summary
+import os
 from tqdm import tqdm
 import json
 import ipdb
@@ -16,13 +17,16 @@ def plot_history(
     history: dict[str, list[float]],
     title: str = "Training History",
     save=False,
-    filename="train",
+    filename="history",
 ):
+    plt.clf()
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -30,6 +34,7 @@ def plot_history(
         plt.savefig(filename)
     else:
         plt.show()
+    plt.close()
 
 
 def test(model: nn.Module, device, val_test_loader, label="val"):
@@ -41,8 +46,7 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
     model.train()
@@ -51,54 +55,119 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
 
 def visualize_predictions(
     model,
-    number_of_preds=1,
+    epoch=1,
     path="",
     downsample_size=(256, 256),
     preprocessed_folder: str = "",
     dataset="kmni",
 ):
-    device = t.device("cuda" if t.cuda.is_available() else "cpu")
-    loader, _, _ = get_loaders(
-        train_batch_size=1,
-        test_batch_size=1,
+    plt.clf()
+    with t.no_grad():
+        device = t.device("cuda" if t.cuda.is_available() else "cpu")
+        loader, _, _ = get_loaders(
+            train_batch_size=2,
+            test_batch_size=2,
+            preprocessed_folder=preprocessed_folder,
+            device=device,
+            downsample_size=downsample_size,
+            dataset=dataset,
+        )
+        model.eval()
+        N_COLS = 4  # frames
+        N_ROWS = 3  # x, y, preds
+        plt.title(f"Epoch {epoch}")
+        _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
+        for x, y in loader:
+            # x, y = x[:number_of_preds], y[:number_of_preds]
+            for k in range(len(x)):
+                raininess = t.sum(x[k] != 0) / t.prod(t.tensor(x[k].shape))
+                if raininess >= 0.5:
+                    preds = model(x)
+                    to_plot = [x[k], y[k], preds[k]]
+                    for i, row in enumerate(ax):
+                        for j, col in enumerate(row):
+                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
+
+                    row_labels = ["x", "y", "preds"]
+                    for ax_, row in zip(ax[:, 0], row_labels):
+                        ax_.set_ylabel(row)
+
+                    col_labels = ["frame1", "frame2", "frame3", "frame4"]
+                    for ax_, col in zip(ax[0, :], col_labels):
+                        ax_.set_title(col)
+
+                    plt.savefig(os.path.join(path, f"pred_{epoch}.png"))
+                    plt.close()
+                    model.train()
+                    return
+
+
+def train_single_epoch(
+    epoch: int,
+    optimizer,
+    criterion,
+    scheduler,
+    model,
+    train_batch_size,
+    test_batch_size,
+    preprocessed_folder,
+    device,
+    dataset,
+    downsample_size,
+    history,
+    output_path,
+):
+    train_loader, val_loader, test_loader = get_loaders(
+        train_batch_size=train_batch_size,
+        test_batch_size=test_batch_size,
         preprocessed_folder=preprocessed_folder,
         device=device,
-        downsample_size=downsample_size,
         dataset=dataset,
+        downsample_size=downsample_size,
     )
-    model = model.to(device)
-    N_COLS = 4  # frames
-    N_ROWS = 3  # x, y, preds
-    _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
-    for x, y in loader:
-        x, y = x[:number_of_preds], y[:number_of_preds]
-        preds = model(x)
+    # print(
+    #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+    # )
 
-        for i, row in enumerate(ax):
-            for j, col in enumerate(row):
-                if i == 0:
-                    col.imshow(x.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
-                elif i == 1:
-                    col.imshow(y.cpu().detach().numpy().squeeze(0)[:, :, j, 0])
-                else:
-                    col.imshow(
-                        1 - preds.cpu().detach().numpy().squeeze(0)[:, :, j, 0]
-                    )
+    model.train()
+    print(f"\nEpoch: {epoch}")
+    running_loss = t.tensor(0.0)
+    total_length = 0
+    for param_group in optimizer.param_groups:  # Print the updated LR
+        print(f"LR: {param_group['lr']}")
+    for x, y in tqdm(train_loader):
+        if len(x) > 1:
+            # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
+            optimizer.zero_grad()
+            y_hat = model(x)  # Implicitly calls the model's forward function
+            loss = criterion(y_hat, y)
+            loss.backward()  # Update the gradients
+            optimizer.step()  # Adjust model parameters
+            total_length += len(x)
+            running_loss += (
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                .detach()
+                .cpu()
+            )
 
-        row_labels = ["x", "y", "preds"]
-        for ax_, row in zip(ax[:, 0], row_labels):
-            ax_.set_ylabel(row)
-
-        col_labels = ["frame1", "frame2", "frame3", "frame4"]
-        for ax_, col in zip(ax[0, :], col_labels):
-            ax_.set_title(col)
-
-        plt.savefig(path + "/results_viz.png")
-        break
+    scheduler.step()
+    train_loss = (running_loss / total_length).item()
+    print(f"Train loss: {round(train_loss, 6)}")
+    val_loss = test(model, device, val_loader)
+    print(f"Val loss: {round(val_loss, 6)}")
+    history["train_loss"].append(train_loss)
+    history["val_loss"].append(val_loss)
+    with open(output_path + "/history.json", "w") as f:
+        json.dump(history, f)
+    if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
+        t.save(model.state_dict(), output_path + "/model.pt")
 
 
 def train(
-    model,
+    *,
+    model_class,
+    optimizer_class,
+    mapping_type,
     train_batch_size=1,
     test_batch_size=100,
     epochs=10,
@@ -107,26 +176,21 @@ def train(
     gamma=1.0,  # 1.0 means disabled
     plot=True,
     criterion=nn.MSELoss(),
-    optimizer=None,
     downsample_size=(256, 256),
     output_path=".",
     preprocessed_folder="",
     dataset="kmni",
-    conv=False,
+    test_first=True,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
     )  # Select the GPU device, if there is one available.
     #
     # device = t.device('cpu')
-    model = model.to(device)
     # optimizer = the procedure for updating the weights of our neural network
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
     history = {"train_loss": [], "val_loss": []}
     print(f"Using device: {device}")
     train_loader, val_loader, test_loader = get_loaders(
@@ -137,79 +201,60 @@ def train(
         dataset=dataset,
         downsample_size=downsample_size,
     )
-    test_loss = test(model, device, test_loader, "test")
-    history["val_loss"].append(test_loss)
-    history["train_loss"].append(1.0)
-    print(f"Test loss (without any training): {test_loss}")
-    for epoch in range(epochs):
-        train_loader, val_loader, test_loader = get_loaders(
-            train_batch_size=train_batch_size,
-            test_batch_size=test_batch_size,
-            preprocessed_folder=preprocessed_folder,
-            device=device,
-            dataset=dataset,
-            downsample_size=downsample_size,
-        )
-        # print(
-        #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
-        # )
+    for x, y in val_loader:
+        B, image_width, image_height, steps, n_vertices = x.shape
+        break
+    model = model_class(
+        image_width=image_width,
+        image_height=image_height,
+        n_vertices=n_vertices,
+        mapping_type=mapping_type,
+    ).to(device)
+    optimizer = optimizer_class(model.parameters(), lr=lr)
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    print(f"Using mapping: {model.mapping_type}")
+    if test_first:
+        test_loss = test(model, device, test_loader, "test")
+        print(f"Test loss (without any training): {test_loss}")
+        history["val_loss"].append(test_loss)
 
-        model.train()
-        print(f"\nEpoch: {epoch + 1}")
-        running_loss = t.tensor(0.0)
-        total_length = 0
-        for param_group in optimizer.param_groups:  # Print the updated LR
-            print(f"LR: {param_group['lr']}")
-        for x, y in tqdm(train_loader):
-            if len(x) > 1:
-                # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
-                optimizer.zero_grad()
-                y_hat = model(
-                    x
-                )  # Implicitly calls the model's forward function
-                loss = criterion(y_hat, y)
-                loss.backward()  # Update the gradients
-                optimizer.step()  # Adjust model parameters
-                total_length += len(x)
-                running_loss += (
-                    (
-                        t.sum((y_hat - y) ** 2)
-                        / t.prod(t.tensor(y.shape[1:]).to(device))
-                    )
-                    .detach()
-                    .cpu()
-                )
-
-        scheduler.step()
-        train_loss = (running_loss / total_length).item()
-        print(f"Train loss: {round(train_loss, 6)}")
-        val_loss = test(model, device, val_loader)
-        print(f"Val loss: {round(val_loss, 6)}")
+        train_loss = test(model, device, train_loader, "test")
+        print(f"Train loss (without any training): {train_loss}")
         history["train_loss"].append(train_loss)
-        history["val_loss"].append(val_loss)
-        with open(output_path + "/history.json", "w") as f:
-            json.dump(history, f)
-        if len(history["val_loss"]) > 1 and val_loss < min(
-            history["val_loss"][:-1]
-        ):
-            t.save(model.state_dict(), output_path + "/model.pt")
+
+    for epoch in range(1, epochs + 1):
+        train_single_epoch(
+            epoch,
+            optimizer,
+            criterion,
+            scheduler,
+            model,
+            train_batch_size,
+            test_batch_size,
+            preprocessed_folder,
+            device,
+            dataset,
+            downsample_size,
+            history,
+            output_path,
+        )
+        visualize_predictions(
+            model,
+            epoch=epoch,
+            path=output_path,
+            downsample_size=downsample_size,
+            preprocessed_folder=preprocessed_folder,
+            dataset=dataset,
+        )
+        plot_history(
+            history,
+            title="Training History",
+            save=True,
+            filename=output_path + "/history.png",
+        )
     test_loss = test(model, device, test_loader, "test")
     print(f"Test loss: {round(test_loss, 6)}")
 
-    plot_history(
-        history,
-        title="Training History",
-        save=True,
-        filename=output_path + "/train.png",
-    )
-    visualize_predictions(
-        model,
-        number_of_preds=1,
-        path=output_path,
-        downsample_size=downsample_size,
-        preprocessed_folder=preprocessed_folder,
-        dataset=dataset,
-    )
     if plot:
         plot_history(history)
     return history, test_loss

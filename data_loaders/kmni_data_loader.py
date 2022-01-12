@@ -21,7 +21,8 @@ class DataLoader:
         time_steps: int = 4,
         norm_max=None,
         norm_min=None,
-        crop=None
+        crop=None,
+        shuffle: bool = True
     ):
         self.crop = crop
         self.device = device
@@ -31,6 +32,11 @@ class DataLoader:
         self.files = tuple(
             os.path.join(folder, fn) for fn in sorted(os.listdir(folder))
         )
+        self.shuffle = shuffle
+        if self.shuffle:
+            rand_indices = t.randperm(len(self.files))
+            tmp = tuple(self.files[i] for i in rand_indices)
+            self.files = tmp
         self.remainder = self.__read_next_file()
         self.file_length = self.remainder.shape[0] * self.remainder.shape[1]
         self.normalizing_constant = 270
@@ -74,16 +80,23 @@ class DataLoader:
 
     def __next__(self) -> tuple[t.Tensor, t.Tensor]:
         # ipdb.set_trace()
-        if self.remainder.shape[1] < self.batch_size:
-            new_data = self.__read_next_file()
-            data = t.cat((self.remainder, new_data), dim=1)
+        if self.remainder.shape[1] == 0:
+            data = self.__read_next_file()
+            # data = t.cat((self.remainder, new_data), dim=1)
         else:
             data = self.remainder
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
+        rand_indices = (
+            t.randperm(result.shape[1])
+            if self.shuffle
+            else t.arange(result.shape[1])
+        )
         results = (
-            result[0].permute(0, 3, 4, 1, 2) / self.normalizing_constant,
-            result[1].permute(0, 3, 4, 1, 2) / self.normalizing_constant,
+            result[0][rand_indices].permute(0, 3, 4, 1, 2)
+            / self.normalizing_constant,
+            result[1][rand_indices].permute(0, 3, 4, 1, 2)
+            / self.normalizing_constant,
         )
         if self.crop is not None:
             results = (
@@ -102,16 +115,29 @@ def get_loaders(
     data_folder: str,
     device,
     crop: int = None,
+    shuffle: bool = True,
 ):
     train_loader = DataLoader(
-        train_batch_size, os.path.join(data_folder, "train"), device, crop=crop
+        train_batch_size,
+        os.path.join(data_folder, "train"),
+        device,
+        crop=crop,
+        shuffle=shuffle,
     )
 
     val_loader = DataLoader(
-        test_batch_size, os.path.join(data_folder, "test"), device, crop=crop
+        test_batch_size,
+        os.path.join(data_folder, "test"),
+        device,
+        crop=crop,
+        shuffle=shuffle,
     )
     test_loader = DataLoader(
-        test_batch_size, os.path.join(data_folder, "test"), device, crop=crop
+        test_batch_size,
+        os.path.join(data_folder, "test"),
+        device,
+        crop=crop,
+        shuffle=shuffle,
     )
     return train_loader, val_loader, test_loader
 

@@ -24,7 +24,8 @@ def generate_experiment(argv: list[str]):
             default=str,
         )
     )
-    model = variables["MODEL"]
+    model_class = variables["MODEL"]
+    mapping_type = variables["MAPPING_TYPE"]
     epochs = variables["EPOCHS"]
     train_batch_size = variables["TRAIN_BATCH_SIZE"]
     test_batch_size = variables["TEST_BATCH_SIZE"]
@@ -35,11 +36,13 @@ def generate_experiment(argv: list[str]):
     gamma = variables["GAMMA"]
     plot = variables["PLOT"]
     criterion = variables["CRITERION"]
-    optimizer = variables["OPTIMIZER"](model.parameters(), lr=learning_rate)
+    optimizer_class = variables["OPTIMIZER"]
     downsample_size = variables["DOWNSAMPLE_SIZE"]
 
     history, test_loss = train(
-        model=model,
+        model_class=model_class,
+        mapping_type=mapping_type,
+        optimizer_class=optimizer_class,
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
         epochs=epochs,
@@ -48,7 +51,6 @@ def generate_experiment(argv: list[str]):
         gamma=gamma,
         plot=plot,
         criterion=criterion,
-        optimizer=optimizer,
         downsample_size=downsample_size,
         output_path=exp_path,
         preprocessed_folder=preprocessed_folder,

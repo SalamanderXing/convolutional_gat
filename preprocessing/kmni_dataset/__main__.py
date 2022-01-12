@@ -13,14 +13,10 @@ def draw_rectangle(img, x0, y0, width, height, border=3):
     original = t.clone(img[x0 : x0 + width, y0 : y0 + height])
     img[x0 : x0 + width, y0 : y0 + height] = 200
     inner = original[border:-border, border:-border]
-    img[
-        x0 + border : x0 + width - border, y0 + border : y0 + height - border
-    ] = inner
+    img[x0 + border : x0 + width - border, y0 + border : y0 + height - border] = inner
 
 
-def preprocess(
-    in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=0.2
-):
+def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=0.2):
     mkdir(out_dir)
     out_dir = os.path.join(out_dir, "train")
     mkdir(out_dir)
@@ -45,9 +41,9 @@ def preprocess(
             for file, file_path in days:
                 try:
                     raw_content = t.from_numpy(
-                        h5py.File(file_path)["image1"]["image_data"][
-                            ...
-                        ].astype(np.uint8)
+                        h5py.File(file_path)["image1"]["image_data"][...].astype(
+                            np.uint8
+                        )
                     )
                 except OSError:
                     print(f"Error reading file {file}")
@@ -64,15 +60,12 @@ def preprocess(
                 content_accumulator = []
                 for x, y in coordinates:
                     # draw_rectangle(content, x, y, 80, 80)
-                    content_accumulator.append(
-                        raw_content[x : x + 80, y : y + 80]
-                    )
+                    content_accumulator.append(raw_content[x : x + 80, y : y + 80])
                 content = t.stack(content_accumulator) / 120
                 content[content == 255] = 0
-                raininess = 1 - t.sum(content == 0) / t.prod(
-                    t.tensor(content.shape)
-                )
-                if raininess >= 0.2:
+                raininess = 1 - t.sum(content == 0) / t.prod(t.tensor(content.shape))
+                ipdb.set_trace()
+                if raininess >= rain_threshold:
                     acc.append(content)
                 elif len(acc) >= 8:
                     tensorized_acc = t.stack(acc)
@@ -133,15 +126,16 @@ def get_mini_dataset(in_dir: str, out_dir: str):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(
-        "action", choices=("preprocess", "test-split", "minimize")
-    )
+    parser.add_argument("action", choices=("preprocess", "test-split", "minimize"))
     parser.add_argument("-i", "--in-dir", type=str)
     parser.add_argument("-o", "--out-dir", type=str)
+    parser.add_argument("-r", "--rain-threshold", type=float, default=0.5)
+    parser.add_argument("-y", "--from-year", type=int, default=2016)
     args = parser.parse_args()
+    assert args.rain_threshold <= 1, "--rain-threshold must be <= 1"
     print(json.dumps(args.__dict__, indent=4))
     if args.action == "preprocess":
-        preprocess(args.in_dir, args.out_dir)
+        preprocess(args.in_dir, args.out_dir, args.from_year, args.rain_threshold)
         test_split(args.out_dir)
     elif args.action == "test-split":
         test_split(args.out_dir)

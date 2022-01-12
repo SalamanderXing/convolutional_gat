@@ -6,7 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+<<<<<<< HEAD
 *.pt
+=======
+# custom
+*.pt
+
+>>>>>>> d6ebf2c7634494f855c34e25d69dac62677b0e6c
 *.zip
 data/
 preprocessed/

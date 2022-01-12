@@ -6,26 +6,45 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import ipdb
+from .GAT_mappings import LinearMapping, SmaAt_UNetMapping, ConvMapping
 
 # from .unet import UNet
-from .smaat_unet.SmaAt_UNet import SmaAt_UNet
 
 
 class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
-    def __init__(self, in_features, out_features, alpha, conv=False):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        alpha,
+        *,
+        image_width: int,
+        image_height: int,
+        n_vertices: int,
+        mapping_type="conv",
+    ):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(t.empty(size=(in_features, out_features)))
-        nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.is_conv = conv
+        self.mapping_type = mapping_type
+        if self.mapping_type == "linear":
+            mappingClass = LinearMapping
+        elif self.mapping_type == "smaat_unet":
+            mappingClass = SmaAt_UNetMapping
+        elif self.mapping_type == "conv":
+            mappingClass = ConvMapping
+        else:
+            raise TypeError(f"Mapping type not supported: {self.type}")
+        self.mapping = mappingClass(in_features, out_features)
+        self.a = nn.Parameter(t.empty(size=(2 * image_height * image_width, 1)))
+        nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        self.B = nn.Parameter(t.zeros(n_vertices, n_vertices) + 1e-6)
+        self.A = Variable(t.eye(n_vertices), requires_grad=False)
+
         # self.conv_net = UNet(in_features, out_features)
-        self.conv_net = SmaAt_UNet(
-            n_channels=in_features, n_classes=out_features
-        )
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -36,23 +55,12 @@ class GATLayerTemporal(nn.Module):
             # print("not five")
             N, V, H, W = h.size()
 
+        if self.A.device != self.B.device:
+            self.A = self.A.to(self.B.device)
         # print("=======", h.size())
-        if self.is_conv:
-            whs = []
-            for i in range(V):
-                # print(i, h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2).size(), "111111111")
-                whi = self.conv_net(h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2))
-                whs.append(whi)
-            Wh = t.stack(whs).permute(1, 0, 3, 4, 2)
-        else:
-            Wh = t.matmul(h, self.W)
+        Wh = self.mapping(h)
 
         # print("***********", Wh.size())
-
-        self.a = nn.Parameter(t.empty(size=(2 * H * W, 1))).to(
-            self.W.device
-        )  # added by Giulio
-        nn.init.xavier_uniform_(self.a.data, gain=1.414)
 
         # if self.is_conv:
         #     whs = []
@@ -75,8 +83,6 @@ class GATLayerTemporal(nn.Module):
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.B = nn.Parameter(t.zeros(V, V) + 1e-6).to(self.W.device)
-        self.A = Variable(t.eye(V), requires_grad=False).to(self.W.device)
         adj_mat = self.B[:, :] + self.A[:, :]
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
@@ -89,7 +95,7 @@ class GATLayerTemporal(nn.Module):
         attention = t.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = t.zeros(N, H * W, T).to(self.W.device)  # added by Giulio
+            at = t.zeros(N, H * W, T).to(self.B.device)  # added by Giulio
             for j in range(V):
                 at += t.matmul(Wh[:, j, :, :], attention[:, i, j, :, :])
             Wh_.append(at)
@@ -97,7 +103,7 @@ class GATLayerTemporal(nn.Module):
         h_prime = h_prime.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
         h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(N, H, W, T, V)
         # return F.elu(h_prime)
-        return t.sigmoid(F.elu(h_prime))
+        return F.elu(h_prime)
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
         B, M, H, W, T = Wh.shape

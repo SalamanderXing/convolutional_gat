@@ -23,5 +23,9 @@ def get_loaders(
         )
     elif dataset == "kmni":
         return get_loaders_kmni(
-            train_batch_size, test_batch_size, preprocessed_folder, device, crop=downsample_size[0]
+            train_batch_size,
+            test_batch_size,
+            preprocessed_folder,
+            device,
+            crop=downsample_size[0],
         )
