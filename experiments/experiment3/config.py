@@ -15,4 +15,4 @@ GAMMA = 1.0
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (100, 100)
+DOWNSAMPLE_SIZE = (80, 80)
