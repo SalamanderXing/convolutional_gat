@@ -91,3 +91,85 @@ class ConvGAT(nn.Module):
 
     def forward(self, x):
         pass
+
+
+class TemporalModel(nn.Module):
+    def __init__(
+        self,
+        *,
+        image_width: int,
+        image_height: int,
+        n_vertices: int,
+        time_steps: int = 4,
+        mapping_type="linear",
+    ):
+        super().__init__()
+        self.mapping_type = mapping_type
+        self.hidden_layer = GATMultiHead3D(
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="temporal",
+            mapping_type=mapping_type,
+            image_height=image_height,
+            image_width=image_width,
+            n_vertices=n_vertices,
+        )
+        self.output_layer = GATMultiHead3D(
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="temporal",
+            mapping_type=mapping_type,
+            image_height=image_height,
+            image_width=image_width,
+            n_vertices=n_vertices,
+        )
+
+    def forward(self, x):
+        x = self.hidden_layer(x)
+        x = self.output_layer(x)
+        return x
+
+
+class MultiStreamModel(nn.Module):
+    def __init__(
+        self,
+        *,
+        image_width: int,
+        image_height: int,
+        n_vertices: int,
+        time_steps: int = 4,
+        mapping_type="linear",
+    ):
+        super().__init__()
+        self.mapping_type = mapping_type
+        self.hidden_layer = GATMultiHead3D(
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="multi_stream",
+            mapping_type=mapping_type,
+            image_height=image_height,
+            image_width=image_width,
+            n_vertices=n_vertices,
+        )
+        self.output_layer = GATMultiHead3D(
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
+            type_="multi_stream",
+            mapping_type=mapping_type,
+            image_height=image_height,
+            image_width=image_width,
+            n_vertices=n_vertices,
+        )
+
+    def forward(self, x):
+        x = self.hidden_layer(x)
+        x = self.output_layer(x)
+        return x

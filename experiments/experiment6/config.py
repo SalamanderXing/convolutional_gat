@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.model import SpatialModel
+from convolutional_gat.model import MultiStreamModel
 
-MODEL = SpatialModel
+MODEL = MultiStreamModel
 PREPROCESSED_FOLDER = "convolutional_gat/preprocessed"
 # PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
-MAPPING_TYPE = "smaat_unet"
+MAPPING_TYPE = "linear"
 DATASET = "kmni"
 EPOCHS = 10
 TRAIN_BATCH_SIZE = 32

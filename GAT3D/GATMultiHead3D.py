@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from .GATLayerSpatial import GATLayerSpatial
 from .GATLayerTemporal import GATLayerTemporal
+from .GATLayerMultiStream import GATLayerMultiStream
 
 
 class GATMultiHead3D(nn.Module):
@@ -34,6 +35,19 @@ class GATMultiHead3D(nn.Module):
         elif type_ == "temporal":
             self.attentions = [
                 GATLayerTemporal(
+                    in_features=nfeat,
+                    out_features=nhid,
+                    alpha=alpha,
+                    mapping_type=mapping_type,
+                    image_width=image_width,
+                    image_height=image_height,
+                    n_vertices=n_vertices,
+                )
+                for _ in range(nheads)
+            ]
+        elif type_ == "multi_stream":
+            self.attentions = [
+                GATLayerMultiStream(
                     in_features=nfeat,
                     out_features=nhid,
                     alpha=alpha,

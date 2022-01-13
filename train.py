@@ -7,7 +7,7 @@ import json
 import ipdb
 from argparse import ArgumentParser
 from .data_loaders.get_loaders import get_loaders
-from .model import SpatialModel, TemporalModel
+from .model import SpatialModel, TemporalModel, MultiStreamModel
 import matplotlib.pyplot as plt
 
 # todo: add that it saves the best performing model
