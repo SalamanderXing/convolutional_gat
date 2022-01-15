@@ -7,7 +7,7 @@ import json
 import ipdb
 from argparse import ArgumentParser
 from .data_loaders.get_loaders import get_loaders
-from .model import SpatialModel, TemporalModel, MultiStreamModel
+from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
 
 # todo: add that it saves the best performing model
@@ -21,12 +21,10 @@ def plot_history(
 ):
     plt.clf()
     plt.plot(
-        history["train_loss"],
-        label="Train loss",
+        history["train_loss"], label="Train loss",
     )
     plt.plot(
-        history["val_loss"],
-        label="Val loss",
+        history["val_loss"], label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -46,7 +44,8 @@ def test(model: nn.Module, device, val_test_loader, label="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
     model.train()
@@ -86,7 +85,9 @@ def visualize_predictions(
                     to_plot = [x[k], y[k], preds[k]]
                     for i, row in enumerate(ax):
                         for j, col in enumerate(row):
-                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
+                            col.imshow(
+                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
+                            )
 
                     row_labels = ["x", "y", "preds"]
                     for ax_, row in zip(ax[:, 0], row_labels):
@@ -145,11 +146,13 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
                 .detach()
                 .cpu()
             )
-
     scheduler.step()
     train_loss = (running_loss / total_length).item()
     print(f"Train loss: {round(train_loss, 6)}")
@@ -159,8 +162,14 @@ def train_single_epoch(
     history["val_loss"].append(val_loss)
     with open(output_path + "/history.json", "w") as f:
         json.dump(history, f)
-    if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
+    if len(history["val_loss"]) > 1 and val_loss < min(
+        history["val_loss"][:-1]
+    ):
         t.save(model.state_dict(), output_path + "/model.pt")
+
+
+def get_number_parameters(model):
+    return sum(tuple(t.prod(t.tensor(el.shape)) for el in model.parameters()))
 
 
 def train(
@@ -210,9 +219,16 @@ def train(
         n_vertices=n_vertices,
         mapping_type=mapping_type,
     ).to(device)
-    optimizer = optimizer_class(model.parameters(), lr=lr)
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+
+    print(f"Number of parameters: {get_number_parameters(model)}")
     print(f"Using mapping: {model.mapping_type}")
+
+    summary(model, input_size=x.shape)
+
+    optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     if test_first:
         test_loss = test(model, device, test_loader, "test")
         print(f"Test loss (without any training): {test_loss}")
