@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.model import TemporalModel
+from convolutional_gat.model import MultiStreamModel
 
-MODEL = TemporalModel
+MODEL = MultiStreamModel
 PREPROCESSED_FOLDER = "convolutional_gat/preprocessed"
 # PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
-MAPPING_TYPE = "linear"
+MAPPING_TYPE = "smaat_unet"
 DATASET = "kmni"
 EPOCHS = 10
 TRAIN_BATCH_SIZE = 32
@@ -16,5 +16,4 @@ GAMMA = 0.95
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (30, 30)
-BINARIZE_THRESH = 10
+DOWNSAMPLE_SIZE = (70, 70)

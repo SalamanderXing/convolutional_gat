@@ -39,7 +39,7 @@ class DataLoader:
             self.files = tmp
         self.remainder = self.__read_next_file()
         self.file_length = self.remainder.shape[0] * self.remainder.shape[1]
-        self.normalizing_constant = 270
+        self.normalizing_constant = 100
 
     """
     def __len__(self) -> int:

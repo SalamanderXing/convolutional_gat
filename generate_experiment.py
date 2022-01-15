@@ -38,6 +38,7 @@ def generate_experiment(argv: list[str]):
     criterion = variables["CRITERION"]
     optimizer_class = variables["OPTIMIZER"]
     downsample_size = variables["DOWNSAMPLE_SIZE"]
+    binarize_thresh = variables["BINARIZE_THRESH"]
 
     history, test_loss = train(
         model_class=model_class,
@@ -55,6 +56,7 @@ def generate_experiment(argv: list[str]):
         output_path=exp_path,
         preprocessed_folder=preprocessed_folder,
         dataset=dataset,
+        binarize_thresh=binarize_thresh
     )
 
 

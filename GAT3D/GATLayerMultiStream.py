@@ -49,6 +49,8 @@ class GATLayerMultiStream(nn.Module):
         self.B = nn.Parameter(t.zeros(n_vertices, n_vertices) + 1e-6)
         self.A = Variable(t.eye(n_vertices), requires_grad=False)
 
+        self.merge_conv = nn.Conv2d(in_features*2, out_features, 1)
+
     def forward(self, h):
         if len(h.size()) == 5:
             N, H, W, T, V = h.size()
@@ -62,7 +64,7 @@ class GATLayerMultiStream(nn.Module):
         Wh = self.mapping(h)
 
         # Spatial Attention
-        a_input_spatial = self.batch_prepare_attentional_mechanism_input(Wh)
+        a_input_spatial = self.batch_prepare_attentional_mechanism_input_spatial(Wh)
         e_spatial = t.matmul(a_input_spatial, self.a_spatial)
         e_spatial = self.leakyrelu(e_spatial.squeeze(-1))
         attention_spatial = F.softmax(e_spatial, dim=-1)
@@ -98,7 +100,7 @@ class GATLayerMultiStream(nn.Module):
         )
 
         # Temporal Attention
-        a_input_temporal = self.batch_prepare_attentional_mechanism_input(Wh)
+        a_input_temporal = self.batch_prepare_attentional_mechanism_input_temporal(Wh)
         e_temporal = t.matmul(a_input_temporal, self.a_temporal)
         e_temporal = self.leakyrelu(e_temporal.squeeze(-1))
         attention_temporal = F.softmax(e_temporal, dim=-1)
@@ -115,12 +117,20 @@ class GATLayerMultiStream(nn.Module):
         h_prime_temporal = h_prime_temporal.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
         h_prime_temporal = t.matmul(h_prime_temporal, adj_mat_norm_d12).view(N, H, W, T, V)
 
-        print("********* ensemble shape ********", h_prime_temporal.size())
+        # print("********* ensemble shape (temporal) ********", h_prime_temporal.size())
+        # print("********* ensemble shape (spatial) ********", h_prime_spatial.size())
+
+        
+        h_spatio_temporal = t.cat([h_prime_spatial, h_prime_temporal], dim=3)
+        b, h, w, f, v = h_spatio_temporal.size()
+        h_spatio_temporal = h_spatio_temporal.reshape((b, h, -1, f)).permute(0, 3, 1, 2)
+        h_spatio_temporal = self.merge_conv(h_spatio_temporal).permute(0, 2, 3, 1).reshape((b, h, w, f//2, v))
+        # print("********* ensemble shape (spatio-temporal) ********", h_spatio_temporal.size())
 
 
-        return F.elu(h_prime)
+        return F.elu(h_spatio_temporal)
 
-    def batch_prepare_attentional_mechanism_input(self, Wh):
+    def batch_prepare_attentional_mechanism_input_spatial(self, Wh):
         B, M, H, W, T = Wh.shape
         Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
         Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
@@ -128,3 +138,12 @@ class GATLayerMultiStream(nn.Module):
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-1
         )
         return all_combinations_matrix.view(B, M, M, H, W, 2 * T)
+
+    def batch_prepare_attentional_mechanism_input_temporal(self, Wh):
+        B, M, H, W, T = Wh.shape
+        Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
+        all_combinations_matrix = t.cat(
+            [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-2
+        )
+        return all_combinations_matrix.view(B, M, M, T, 2 * H * W)
