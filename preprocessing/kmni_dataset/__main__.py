@@ -13,10 +13,29 @@ def draw_rectangle(img, x0, y0, width, height, border=3):
     original = t.clone(img[x0 : x0 + width, y0 : y0 + height])
     img[x0 : x0 + width, y0 : y0 + height] = 200
     inner = original[border:-border, border:-border]
-    img[x0 + border : x0 + width - border, y0 + border : y0 + height - border] = inner
+    img[
+        x0 + border : x0 + width - border, y0 + border : y0 + height - border
+    ] = inner
 
 
-def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=0.2):
+def get_z_score_normalizing_constants(preprecessed_folder: str):
+    acc = t.cat(
+        tuple(
+            t.load(fpath)
+            for fname, fpath in listdir(
+                os.path.join(preprecessed_folder, "train")
+            )
+        )
+    ).float()
+    result = {"mean": t.mean(acc).item(), "var": t.var(acc).item()}
+    print(json.dumps(result, indent=4))
+    with open(os.path.join(preprecessed_folder, "metadata.json"), "w") as f:
+        json.dump(result, f)
+
+
+def preprocess(
+    in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=0.2
+):
     mkdir(out_dir)
     out_dir = os.path.join(out_dir, "train")
     mkdir(out_dir)
@@ -39,15 +58,11 @@ def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=
                 if fname.endswith(".h5")
             ]
             for file, file_path in days:
-                try:
-                    raw_content = t.from_numpy(
-                        h5py.File(file_path)["image1"]["image_data"][...].astype(
-                            np.uint8
-                        )
+                raw_content = t.from_numpy(
+                    h5py.File(file_path)["image1"]["image_data"][...].astype(
+                        np.uint8
                     )
-                except OSError:
-                    print(f"Error reading file {file}")
-                # TODO: reshape content
+                )
                 raw_content = raw_content[243:590, 234:512]
                 coordinates = (
                     (201, 38),
@@ -60,10 +75,14 @@ def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=
                 content_accumulator = []
                 for x, y in coordinates:
                     # draw_rectangle(content, x, y, 80, 80)
-                    content_accumulator.append(raw_content[x : x + 80, y : y + 80])
+                    content_accumulator.append(
+                        raw_content[x : x + 80, y : y + 80]
+                    )
                 content = t.stack(content_accumulator) / 120
                 content[content == 255] = 0
-                raininess = 1 - t.sum(content == 0) / t.prod(t.tensor(content.shape))
+                raininess = 1 - t.sum(content == 0) / t.prod(
+                    t.tensor(content.shape)
+                )
                 ipdb.set_trace()
                 if raininess >= rain_threshold:
                     acc.append(content)
@@ -126,7 +145,9 @@ def get_mini_dataset(in_dir: str, out_dir: str):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("action", choices=("preprocess", "test-split", "minimize"))
+    parser.add_argument(
+        "action", choices=("preprocess", "test-split", "minimize", "z-score")
+    )
     parser.add_argument("-i", "--in-dir", type=str)
     parser.add_argument("-o", "--out-dir", type=str)
     parser.add_argument("-r", "--rain-threshold", type=float, default=0.5)
@@ -135,9 +156,13 @@ if __name__ == "__main__":
     assert args.rain_threshold <= 1, "--rain-threshold must be <= 1"
     print(json.dumps(args.__dict__, indent=4))
     if args.action == "preprocess":
-        preprocess(args.in_dir, args.out_dir, args.from_year, args.rain_threshold)
+        preprocess(
+            args.in_dir, args.out_dir, args.from_year, args.rain_threshold
+        )
         test_split(args.out_dir)
     elif args.action == "test-split":
         test_split(args.out_dir)
     elif args.action == "minimize":
         get_mini_dataset(args.in_dir, args.out_dir)
+    elif args.action == "z-score":
+        get_z_score_normalizing_constants(args.out_dir)
