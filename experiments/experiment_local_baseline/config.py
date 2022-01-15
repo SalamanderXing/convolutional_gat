@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.model import TemporalModel, SpatialModel, BaselineModel
+from convolutional_gat.baseline_model import BaselineModel
 
 MODEL = BaselineModel
 PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
