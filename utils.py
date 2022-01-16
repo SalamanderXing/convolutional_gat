@@ -34,7 +34,7 @@ class MSE_denormalized:
 
 # Convert output to binary mask and calculate metrics
 class thresholded_mask_metrics:
-    def __init__(self, test_data=None, threshold=None):
+    def __init__(self, test_data=None, threshold=None, var=None, mean=None):
         self._binarized_mse = tf.keras.losses.MeanSquaredError()
         self._acc = tf.keras.metrics.Accuracy()
         self._precision = tf.keras.metrics.Precision()
@@ -47,6 +47,8 @@ class thresholded_mask_metrics:
         self._TN = tf.keras.metrics.TrueNegatives()
         self._FP = tf.keras.metrics.FalsePositives()
         self._FN = tf.keras.metrics.FalseNegatives()
+        self.var = var
+        self.mean = mean 
 
     def binarize_mask(self, values):
         # Initialize TF values
@@ -61,6 +63,8 @@ class thresholded_mask_metrics:
         return values
     
     def binarized_mse(self, y_true, y_pred):
+        # Denormalize
+        y_true, y_pred = y_true * self.var + self.mean, y_pred * self.var + self.mean
         # Binarize mask
         y_true = self.binarize_mask(y_true)
         y_pred = self.binarize_mask(y_pred)

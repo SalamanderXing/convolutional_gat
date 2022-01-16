@@ -37,7 +37,7 @@ def plot_history(
 
 
 def test(model: nn.Module, device, val_test_loader, label="val", binarize_thresh=0):
-    thresh_metrics = thresholded_mask_metrics(threshold=binarize_thresh)
+    thresh_metrics = thresholded_mask_metrics(threshold=binarize_thresh, var=val_test_loader.normalizing_var, mean=val_test_loader.normalizing_mean)
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
@@ -59,7 +59,10 @@ def test(model: nn.Module, device, val_test_loader, label="val", binarize_thresh
                 running_recall += thresh_metrics.recall(y, y_hat)
 
     model.train()
-    return (running_loss / total_length).item(), (running_acc / total_length).item(), (running_prec / total_length).item(), (running_recall / total_length).item()
+    return (running_loss / total_length).item(), \
+            (running_acc.numpy() / total_length).item(), \
+            (running_prec.numpy() / total_length).item(), \
+            (running_recall.numpy() / total_length).item()
 
 
 def visualize_predictions(
@@ -168,6 +171,7 @@ def train_single_epoch(
     train_loss = (running_loss / total_length).item()
     print(f"Train loss: {round(train_loss, 6)}")
     val_loss, val_acc, val_prec, val_rec = test(model, device, val_loader, binarize_thresh)
+    # ipdb.set_trace()
     print(f"Val loss: {round(val_loss, 6)}")
     history["train_loss"].append(train_loss)
     history["val_loss"].append(val_loss)
@@ -218,7 +222,7 @@ def train(
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    history = {"train_loss": [], "val_loss": []}
+    history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_prec": [], "val_rec": []}
     print(f"Using device: {device}")
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
@@ -271,6 +275,7 @@ def train(
             downsample_size,
             history,
             output_path,
+            binarize_thresh
         )
         visualize_predictions(
             model,
