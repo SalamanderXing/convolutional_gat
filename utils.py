@@ -2,14 +2,16 @@ import h5py
 import tensorflow as tf
 import numpy as np
 import torch as t
-
+import ipdb
 
 # Custom metric to calculate the denormalized for the precipitation data
 class MSE_denormalized:
-    def __init__(self, maxValue, batch_size, latitude, longitude, reduction_sum=False):
-        self.maxValue = maxValue
-        self.batch_size = batch_size
-        self.n_pixels = t.multiply(latitude, longitude), tf.float32
+    def __init__(self, loader, reduction_sum=False):
+        # self.maxValue = maxValue
+        self.batch_size = loader.batch_size
+        # self.n_pixels = t.multiply(latitude, longitude), tf.float32
+        self.var = loader.normalizing_var
+        self.mean = loader.normalizing_mean
         if reduction_sum:
             self.mse = t.nn.MSELoss(reduction="sum")
         else:
@@ -17,9 +19,11 @@ class MSE_denormalized:
 
     def mse_denormalized_per_image(self, y_true, y_pred):
         # Denormalizing ground truth
-        y_true = t.multiply(y_true, self.maxValue)
+        # y_true = t.multiply(y_true, self.maxValue)
+        y_true = y_true * self.var + self.mean
         # Denormalizing prediction
-        y_pred = t.multiply(y_pred, self.maxValue)
+        # y_pred = t.multiply(y_pred, self.maxValue)
+        y_pred = y_pred * self.var + self.mean
         # Calculating mse per image
         mse_image = t.true_divide(self.mse(y_true, y_pred), self.batch_size)
         return mse_image
@@ -28,6 +32,7 @@ class MSE_denormalized:
         # Calculating mse per image
         mse_image = self.mse_denormalized_per_image(y_true, y_pred)
         # Calculating mse per pixel
+        ipdb.set_trace()
         mse_pixel = t.true_divide(mse_image, self.n_pixels)
         return mse_pixel
 
