@@ -37,12 +37,24 @@ def plot_history(
     plt.close()
 
 
+def accuracy(y, y_hat, mean):
+    y = t.clone(y.cpu())
+    y_hat = t.clone(y_hat.cpu())
+    y[y < mean] = 0
+    y[y >= mean] = 1
+    y_hat[y_hat < mean] = 0
+    y_hat[y_hat >= mean] = 1
+    correct = y == y_hat
+    result = t.sum(correct) / y[0].numel()
+    return result
+
+
 def test(model: nn.Module, device, val_test_loader, flag="val"):
-    binarize_thresh = val_test_loader.normalizing_mean
+    binarize_thresh = t.mean(val_test_loader.normalizing_mean)
     thresh_metrics = thresholded_mask_metrics(
         threshold=binarize_thresh,
-        var=val_test_loader.normalizing_var,
-        mean=val_test_loader.normalizing_mean,
+        var=t.mean(val_test_loader.normalizing_var),
+        mean=t.mean(val_test_loader.normalizing_mean),
     )
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
@@ -55,17 +67,20 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
-
-                running_acc += thresh_metrics.acc(y, y_hat).numpy()
-                running_prec += thresh_metrics.precision(y, y_hat).numpy()
-                running_recall += thresh_metrics.recall(y, y_hat).numpy()
+                running_acc += accuracy(y, y_hat, 0.04011)
+                # running_acc += thresh_metrics.acc(y, y_hat).numpy()
+                running_prec += thresh_metrics.precision(
+                    y, y_hat
+                ).numpy() * len(x)
+                running_recall += thresh_metrics.recall(
+                    y, y_hat
+                ).numpy() * len(x)
 
     model.train()
-    if flag == "test":
-        ipdb.set_trace()
     return {
         "val_loss": (running_loss / total_length).item(),
         "val_acc": (running_acc / total_length).item(),
@@ -115,7 +130,11 @@ def visualize_predictions(
                                 else to_plot[i]
                                 .cpu()
                                 .detach()
-                                .numpy()[j, : downsample_size[0], : downsample_size[1],]
+                                .numpy()[
+                                    j,
+                                    : downsample_size[0],
+                                    : downsample_size[1],
+                                ]
                             )
 
                     row_labels = ["x", "y", "preds"]
@@ -176,7 +195,10 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
                 .detach()
                 .cpu()
             )
@@ -186,7 +208,8 @@ def train_single_epoch(
     print(f"Train loss: {round(train_loss, 6)}")
     history["train_loss"].append(train_loss)
     test_result = test(model, device, val_loader)
-    print(f"Val loss: {round(test_result['val_loss'], 6)}")
+    # print(f"Val loss: {round(test_result['val_loss'], 6)}")
+    print(json.dumps(test_result, indent=4))
     update_history(history, test_result)
     with open(output_path + "/history.json", "w") as f:
         json.dump(history, f, indent=4)
@@ -251,11 +274,16 @@ def train(
     # summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     if test_first:
+        result = test(model, device, train_loader,)
+        history["train_loss"].append(result["val_loss"])
         result = test(model, device, test_loader,)
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
+        print(json.dumps(result, indent=4))
 
     for epoch in range(1, epochs + 1):
         train_single_epoch(
