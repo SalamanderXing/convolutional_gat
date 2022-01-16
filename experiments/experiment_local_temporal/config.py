@@ -3,10 +3,10 @@ import torch.nn as nn
 from convolutional_gat.model import TemporalModel, SpatialModel
 
 MODEL = TemporalModel
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/50_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"
-EPOCHS = 3
+EPOCHS = 5
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 64
 LEARNING_RATE = 0.001
@@ -15,4 +15,4 @@ GAMMA = 0.95
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (20, 20)
+DOWNSAMPLE_SIZE = (80, 80)
