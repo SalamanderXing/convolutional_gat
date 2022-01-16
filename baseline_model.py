@@ -7,11 +7,7 @@ from torch.autograd import Variable
 import ipdb
 
 
-dev = (
-    t.device("cuda:0")
-    if t.cuda.is_available()
-    else t.device("cpu")
-)
+dev = t.device("cuda:0") if t.cuda.is_available() else t.device("cpu")
 
 
 class GraphAttentionLayer(nn.Module):
@@ -49,9 +45,7 @@ class GraphAttentionLayer(nn.Module):
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(
-            t.diag(t.sum(adj_mat, axis=1)), requires_grad=False
-        )
+        D = Variable(t.diag(t.sum(adj_mat, axis=1)), requires_grad=False)
         D_12 = t.sqrt(t.inverse(D))
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
 
@@ -143,9 +137,7 @@ class GraphAttentionLayer2D(nn.Module):
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
         adj_mat = (adj_mat - adj_mat_min) / (adj_mat_max - adj_mat_min)
-        D = Variable(
-            t.diag(t.sum(adj_mat, axis=1)), requires_grad=False
-        )
+        D = Variable(t.diag(t.sum(adj_mat, axis=1)), requires_grad=False)
         D_12 = t.sqrt(t.inverse(D))
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
 
@@ -156,20 +148,14 @@ class GraphAttentionLayer2D(nn.Module):
         for i in range(V):
             at = t.zeros(N, self.out_features, C).to(dev)
             for j in range(V):
-                at += t.matmul(
-                    Wh[:, j, :, :].to(dev), attention[:, i, j, :, :].to(dev)
-                )
+                at += t.matmul(Wh[:, j, :, :].to(dev), attention[:, i, j, :, :].to(dev))
             Wh_.append(at)
 
         h_prime = t.stack((Wh_))
         h_prime = (
-            h_prime.permute(1, 3, 2, 0)
-            .contiguous()
-            .view(N, C * self.out_features, V)
+            h_prime.permute(1, 3, 2, 0).contiguous().view(N, C * self.out_features, V)
         )
-        h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(
-            N, C, self.out_features, V
-        )
+        h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(N, C, self.out_features, V)
 
         return F.elu(h_prime)
 
@@ -209,7 +195,6 @@ class GATMultiHead2D(nn.Module):
         N, C, T, V = x.size()
         x = t.cat(tuple(att(x) for att in self.attentions), dim=2)
         return x
-
 
 
 class BaselineModel2D(nn.Module):
@@ -283,6 +268,3 @@ class BaselineModel(nn.Module):
         x = self.output_layer(x)
         x = x.view(B, H, W, T, V)
         return t.tanh(x)
-
-
-

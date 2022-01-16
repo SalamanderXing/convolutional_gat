@@ -53,7 +53,7 @@ class thresholded_mask_metrics:
         self._FP = tf.keras.metrics.FalsePositives()
         self._FN = tf.keras.metrics.FalseNegatives()
         self.var = var
-        self.mean = mean 
+        self.mean = mean
 
     def binarize_mask(self, values):
         # Initialize TF values
@@ -66,10 +66,13 @@ class thresholded_mask_metrics:
         values = t.where(values.cpu() >= self._threshold, ones, zeros)
         # values = t.where(values < limit, 0, values)
         return values
-    
+
     def binarized_mse(self, y_true, y_pred):
         # Denormalize
-        y_true, y_pred = y_true * self.var + self.mean, y_pred * self.var + self.mean
+        y_true, y_pred = (
+            y_true * self.var + self.mean,
+            y_pred * self.var + self.mean,
+        )
         # Binarize mask
         y_true = self.binarize_mask(y_true)
         y_pred = self.binarize_mask(y_pred)
@@ -116,7 +119,7 @@ class thresholded_mask_metrics:
         FP = self._FP(y_true, y_pred)
         FN = self._FN(y_true, y_pred)
         # Calculate metrics
-        return TP/(TP+FN+FP)
+        return TP / (TP + FN + FP)
 
     def FAR(self, y_true, y_pred):
         # Binarize mask
@@ -128,38 +131,48 @@ class thresholded_mask_metrics:
         FP = self._FP(y_true, y_pred)
         FN = self._FN(y_true, y_pred)
         # Calculate metrics
-        return FP/(TP+FP)
-      
-        
+        return FP / (TP + FP)
+
+
 def model_persistence(x):
     return x[:, :, -1]
 
 
 def acc(y_true, y_pred):
-    return np.sum((np.asarray(y_true) == np.asarray(y_pred))) / (y_true.shape[0]*y_true.shape[1])
+    return np.sum((np.asarray(y_true) == np.asarray(y_pred))) / (
+        y_true.shape[0] * y_true.shape[1]
+    )
 
 
 def precision(y_true, y_pred):
     TP = ((y_pred == 1) & (y_true == 1)).sum()
     FP = ((y_pred == 1) & (y_true == 0)).sum()
-    return TP / (TP+FP)
+    return TP / (TP + FP)
 
 
 def recall(y_true, y_pred):
     TP = ((y_pred == 1) & (y_true == 1)).sum()
     FP = ((y_pred == 1) & (y_true == 0)).sum()
     FN = ((y_pred == 0) & (y_true == 1)).sum()
-    return TP / (TP+FN) 
+    return TP / (TP + FN)
+
+
+def update_history(history: dict[str, list[float]], data: dict[str, float]):
+    for key, val in data.items():
+        if key not in history:
+            history[key] = []
+        history[key].append(val)
 
 
 def extract_datasets(hdf_file):
-    def h5py_dataset_iterator(g, prefix=''):
+    def h5py_dataset_iterator(g, prefix=""):
         for key in g.keys():
             item = g[key]
-            path = f'{prefix}/{key}'
-            if isinstance(item, h5py.Dataset): # test for dataset
+            path = f"{prefix}/{key}"
+            if isinstance(item, h5py.Dataset):  # test for dataset
                 yield (path, item)
-            elif isinstance(item, h5py.Group): # test for group (go down)
+            elif isinstance(item, h5py.Group):  # test for group (go down)
                 yield from h5py_dataset_iterator(item, path)
+
     for path, _ in h5py_dataset_iterator(hdf_file):
         yield path

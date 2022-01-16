@@ -17,7 +17,7 @@ class GATLayerSpatial(nn.Module):
         image_width: int,
         image_height: int,
         n_vertices: int,
-        mapping_type="linear"
+        mapping_type="linear",
     ):
         super().__init__()
         self.in_features = in_features

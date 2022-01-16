@@ -24,17 +24,13 @@ class LinearMapping(nn.Module):
 class SmaAt_UNetMapping(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
-        self.conv_net = SmaAt_UNet(
-            n_channels=in_features, n_classes=out_features
-        )
+        self.conv_net = SmaAt_UNet(n_channels=in_features, n_classes=out_features)
 
     def forward(self, h):
         whs = []
         for i in range(h.shape[1]):
             # print(i, h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2).size(), "111111111")
-            whi = self.conv_net(
-                h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2)
-            )
+            whi = self.conv_net(h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2))
             whs.append(whi)
         Wh = t.stack(whs).permute(1, 0, 3, 4, 2)
         return Wh
@@ -42,20 +38,11 @@ class SmaAt_UNetMapping(nn.Module):
 
 class ConvBlock2D(nn.Module):
     def __init__(
-        self,
-        in_features,
-        out_features,
-        kernel_size,
-        dropout=0.15,
-        nonlinear=True,
+        self, in_features, out_features, kernel_size, dropout=0.15, nonlinear=True,
     ):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_features,
-            out_features,
-            kernel_size,
-            padding="same",
-            groups=in_features,
+            in_features, out_features, kernel_size, padding="same", groups=in_features,
         )
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear
@@ -71,12 +58,7 @@ class ConvBlock2D(nn.Module):
 
 class ConvBlock3D(nn.Module):
     def __init__(
-        self,
-        in_features,
-        out_features,
-        kernel_size,
-        dropout=0.15,
-        nonlinear=True,
+        self, in_features, out_features, kernel_size, dropout=0.15, nonlinear=True,
     ):
         super().__init__()
         self.conv = nn.Conv3d(

@@ -23,6 +23,11 @@ class DataLoader:
         shuffle: bool = True,
         merge_nodes: bool = False
     ):
+        metadata = t.load(os.path.join(folder, "../metadata.pt"))
+        self.normalizing_var = metadata["var"]
+        self.normalizing_mean = metadata["mean"]
+        self.normalizing_var[self.normalizing_var == 0] = 1 # otherwise it would cause error
+
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
@@ -39,17 +44,8 @@ class DataLoader:
             self.files = tmp
         self.remainder = self.__read_next_file()
         self.file_length = self.remainder.shape[0] * self.remainder.shape[1]
-        with open(os.path.join(folder, "../metadata.json")) as f:
-            metadata = json.load(f)
-            self.normalizing_var = metadata["var"]
-            self.normalizing_mean = metadata["mean"]
-
-    """
-    def __len__(self) -> int:
-        return int(
-            np.ceil(len(self.files) * self.file_length / self.batch_size)
-        )
-    """
+        
+       
 
     def __read_next_file(self) -> t.Tensor:
         if self.file_index == len(self.files):
@@ -61,6 +57,7 @@ class DataLoader:
 
     def __segmentify(self, data: t.Tensor) -> t.Tensor:
         data = data[: (len(data) // 8) * 8]
+        data = (data - self.normalizing_mean) / self.normalizing_var
         segments = t.stack(
             tuple(
                 el
@@ -77,17 +74,12 @@ class DataLoader:
             tuple(t.stack((s[:4], s[4:])) for s in segments)
         ).transpose(0, 1)
         if self.crop is not None:
-            split_segments = split_segments[
-                :, :, :, :, : self.crop, : self.crop
-            ]
+            split_segments = split_segments[:, :, :, :, : self.crop, : self.crop]
         if self.merge_nodes:
             split_segments = t.cat(
                 tuple(
                     t.cat(
-                        (
-                            split_segments[:, :, :, i],
-                            split_segments[:, :, :, i + 1],
-                        ),
+                        (split_segments[:, :, :, i], split_segments[:, :, :, i + 1],),
                         dim=3,
                     )
                     for i in range(3)
@@ -104,21 +96,15 @@ class DataLoader:
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
         rand_indices = (
-            t.randperm(result.shape[1])
-            if self.shuffle
-            else t.arange(result.shape[1])
+            t.randperm(result.shape[1]) if self.shuffle else t.arange(result.shape[1])
         )
+        if self.merge_nodes:
+            result = result.permute(0, 1, 2, 3, 4)
+        else:
+            result = result.permute(0, 1, 4, 5, 2, 3)
         results = (
-            (
-                result[0][rand_indices].permute(0, 3, 4, 1, 2)
-                - self.normalizing_mean
-            )
-            / self.normalizing_var,
-            (
-                result[1][rand_indices].permute(0, 3, 4, 1, 2)
-                - self.normalizing_mean
-            )
-            / self.normalizing_var,
+            result[0][rand_indices],
+            result[1][rand_indices],
         )
         return results
 
@@ -133,6 +119,7 @@ def get_loaders(
     device,
     crop: int = None,
     shuffle: bool = True,
+    merge_nodes: bool = False,
 ):
     train_loader = DataLoader(
         train_batch_size,
@@ -140,6 +127,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
 
     val_loader = DataLoader(
@@ -148,6 +136,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
     test_loader = DataLoader(
         test_batch_size,
@@ -155,6 +144,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
     return train_loader, val_loader, test_loader
 

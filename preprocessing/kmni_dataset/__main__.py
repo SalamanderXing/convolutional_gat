@@ -27,10 +27,11 @@ def get_z_score_normalizing_constants(preprecessed_folder: str):
             )
         )
     ).float()
-    result = {"mean": t.mean(acc).item(), "var": t.var(acc).item()}
-    print(json.dumps(result, indent=4))
-    with open(os.path.join(preprecessed_folder, "metadata.json"), "w") as f:
-        json.dump(result, f)
+    result = {
+        "mean": t.mean(acc, dim=0),
+        "var": t.var(acc, dim=0),
+    }
+    t.save(result, os.path.join(preprecessed_folder, "metadata.pt"))
 
 
 def preprocess(

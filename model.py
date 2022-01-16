@@ -5,13 +5,14 @@ from .GAT3D.GATMultiHead3D import GATMultiHead3D
 
 class SpatialModel(nn.Module):
     def __init__(
-        self, 
-        *, 
-        image_width: int, 
-        image_height: int, 
+        self,
+        *,
+        image_width: int,
+        image_height: int,
         n_vertices: int,
         time_steps: int = 4,
-        mapping_type="linear"):
+        mapping_type="linear",
+    ):
 
         super().__init__()
         self.mapping_type = mapping_type
@@ -27,10 +28,10 @@ class SpatialModel(nn.Module):
             n_vertices=n_vertices,
         )
         self.output_layer = GATMultiHead3D(
-            nfeat=time_steps, 
-            nhid=time_steps, 
-            alpha=0.2, 
-            nheads=1, 
+            nfeat=time_steps,
+            nhid=time_steps,
+            alpha=0.2,
+            nheads=1,
             type_="spatial",
             mapping_type=mapping_type,
             image_height=image_height,

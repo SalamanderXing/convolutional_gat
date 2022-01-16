@@ -23,10 +23,7 @@ class DataLoader:
         time_steps: int = 4,
         norm_max=None,
         norm_min=None,
-        downsample_size: tuple[int, int] = (
-            256,
-            256,
-        ),  # by default, don't downsample
+        downsample_size: tuple[int, int] = (256, 256,),  # by default, don't downsample
     ):
         self.total_length = total_length
         self.n_regions = n_regions
@@ -118,8 +115,7 @@ class DataLoader:
                 self.thread.start()
         # print(f"{result[0].shape=}")
         return self.fix_sizes(
-            current_batch[0].to(self.device),
-            current_batch[1].to(self.device),
+            current_batch[0].to(self.device), current_batch[1].to(self.device),
         )
 
     def __read_next_file(self) -> t.Tensor:
