@@ -56,7 +56,7 @@ def generate_experiment(argv: list[str]):
         output_path=exp_path,
         preprocessed_folder=preprocessed_folder,
         dataset=dataset,
-        binarize_thresh=binarize_thresh
+        binarize_thresh=binarize_thresh,
     )
 
 

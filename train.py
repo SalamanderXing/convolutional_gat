@@ -37,7 +37,11 @@ def plot_history(
 
 
 def test(model: nn.Module, device, val_test_loader, label="val", binarize_thresh=0):
-    thresh_metrics = thresholded_mask_metrics(threshold=binarize_thresh, var=val_test_loader.normalizing_var, mean=val_test_loader.normalizing_mean)
+    thresh_metrics = thresholded_mask_metrics(
+        threshold=binarize_thresh,
+        var=val_test_loader.normalizing_var,
+        mean=val_test_loader.normalizing_mean,
+    )
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
@@ -49,20 +53,21 @@ def test(model: nn.Module, device, val_test_loader, label="val", binarize_thresh
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
-                
+
                 running_acc += thresh_metrics.acc(y, y_hat)
                 running_prec += thresh_metrics.precision(y, y_hat)
                 running_recall += thresh_metrics.recall(y, y_hat)
 
     model.train()
-    return (running_loss / total_length).item(), \
-            (running_acc.numpy() / total_length).item(), \
-            (running_prec.numpy() / total_length).item(), \
-            (running_recall.numpy() / total_length).item()
+    return (
+        (running_loss / total_length).item(),
+        (running_acc.numpy() / total_length).item(),
+        (running_prec.numpy() / total_length).item(),
+        (running_recall.numpy() / total_length).item(),
+    )
 
 
 def visualize_predictions(
@@ -98,9 +103,7 @@ def visualize_predictions(
                     to_plot = [x[k], y[k], preds[k]]
                     for i, row in enumerate(ax):
                         for j, col in enumerate(row):
-                            col.imshow(
-                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
-                            )
+                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
 
                     row_labels = ["x", "y", "preds"]
                     for ax_, row in zip(ax[:, 0], row_labels):
@@ -130,7 +133,7 @@ def train_single_epoch(
     downsample_size,
     history,
     output_path,
-    binarize_thresh
+    binarize_thresh,
 ):
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
@@ -160,17 +163,16 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                )
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
                 .detach()
                 .cpu()
             )
     scheduler.step()
     train_loss = (running_loss / total_length).item()
     print(f"Train loss: {round(train_loss, 6)}")
-    val_loss, val_acc, val_prec, val_rec = test(model, device, val_loader, binarize_thresh)
+    val_loss, val_acc, val_prec, val_rec = test(
+        model, device, val_loader, binarize_thresh
+    )
     # ipdb.set_trace()
     print(f"Val loss: {round(val_loss, 6)}")
     history["train_loss"].append(train_loss)
@@ -183,9 +185,7 @@ def train_single_epoch(
 
     with open(output_path + "/history.json", "w") as f:
         json.dump(history, f)
-    if len(history["val_loss"]) > 1 and val_loss < min(
-        history["val_loss"][:-1]
-    ):
+    if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
         t.save(model.state_dict(), output_path + "/model.pt")
 
 
@@ -211,7 +211,7 @@ def train(
     preprocessed_folder="",
     dataset="kmni",
     test_first=True,
-    binarize_thresh
+    binarize_thresh,
 ):
     device = t.device(
         "cuda" if t.cuda.is_available() else "cpu"
@@ -222,7 +222,13 @@ def train(
     # optimizer = t.optim.Adam(model.parameters(), lr=lr)
     # criterion = nn.MSELoss()
     # criterion = nn.BCELoss()  tested but didn't improve significantly
-    history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_prec": [], "val_rec": []}
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+        "val_acc": [],
+        "val_prec": [],
+        "val_rec": [],
+    }
     print(f"Using device: {device}")
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
@@ -248,15 +254,17 @@ def train(
     summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     if test_first:
-        test_loss, test_acc, test_prec, test_rec = test(model, device, test_loader, "test", binarize_thresh)
+        test_loss, test_acc, test_prec, test_rec = test(
+            model, device, test_loader, "test", binarize_thresh
+        )
         print(f"Test loss (without any training): {test_loss}")
         history["val_loss"].append(test_loss)
 
-        train_loss, train_acc, train_prec, train_rec = test(model, device, train_loader, "test", binarize_thresh)
+        train_loss, train_acc, train_prec, train_rec = test(
+            model, device, train_loader, "test", binarize_thresh
+        )
         print(f"Train loss (without any training): {train_loss}")
         history["train_loss"].append(train_loss)
 
@@ -275,7 +283,7 @@ def train(
             downsample_size,
             history,
             output_path,
-            binarize_thresh
+            binarize_thresh,
         )
         visualize_predictions(
             model,
@@ -291,7 +299,9 @@ def train(
             save=True,
             filename=output_path + "/history.png",
         )
-    test_loss, test_acc, test_prec, test_rec = test(model, device, test_loader, "test", binarize_thresh)
+    test_loss, test_acc, test_prec, test_rec = test(
+        model, device, test_loader, "test", binarize_thresh
+    )
     print(f"Test loss: {round(test_loss, 6)}")
 
     if plot:

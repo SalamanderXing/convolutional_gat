@@ -17,9 +17,7 @@ def main():
         (str(x[0]), str(x[1])) for x in json.loads(args.select_variables)
     )
     preprocess(
-        in_path=args.in_path,
-        out_path=args.out_path,
-        select_variables=select_variables,
+        in_path=args.in_path, out_path=args.out_path, select_variables=select_variables,
     )
 
 

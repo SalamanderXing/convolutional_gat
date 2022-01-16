@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.baseline_model import (
-    BaselineModel2D,
-)
+from convolutional_gat.baseline_model import BaselineModel2D
 
 MODEL = BaselineModel2D
 PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"

@@ -36,8 +36,10 @@ class GATLayerMultiStream(nn.Module):
         else:
             raise TypeError(f"Mapping type not supported: {self.type}")
         self.mapping = mappingClass(in_features, out_features)
-        
-        self.a_temporal = nn.Parameter(t.empty(size=(2 * image_height * image_width, 1)))
+
+        self.a_temporal = nn.Parameter(
+            t.empty(size=(2 * image_height * image_width, 1))
+        )
         nn.init.xavier_uniform_(self.a_temporal.data, gain=1.414)
 
         self.a_spatial = nn.Parameter(t.empty(size=(2 * out_features, 1)))  # [8, 1]
@@ -49,7 +51,7 @@ class GATLayerMultiStream(nn.Module):
         self.B = nn.Parameter(t.zeros(n_vertices, n_vertices) + 1e-6)
         self.A = Variable(t.eye(n_vertices), requires_grad=False)
 
-        self.merge_conv = nn.Conv2d(in_features*2, out_features, 1)
+        self.merge_conv = nn.Conv2d(in_features * 2, out_features, 1)
 
     def forward(self, h):
         if len(h.size()) == 5:
@@ -83,9 +85,9 @@ class GATLayerMultiStream(nn.Module):
         for i in range(V):
             at = t.zeros(N, H, W, self.out_features).to(self.W.device)
             for j in range(V):
-                at += Wh[:, j, :, :, :] * attention_spatial[:, i, j, :, :].unsqueeze(3).repeat(
-                    1, 1, 1, self.out_features
-                )
+                at += Wh[:, j, :, :, :] * attention_spatial[:, i, j, :, :].unsqueeze(
+                    3
+                ).repeat(1, 1, 1, self.out_features)
             Wh_.append(at)
 
         h_prime_spatial = t.stack((Wh_))
@@ -114,19 +116,25 @@ class GATLayerMultiStream(nn.Module):
                 at += t.matmul(Wh[:, j, :, :], attention_temporal[:, i, j, :, :])
             Wh_.append(at)
         h_prime_temporal = t.stack((Wh_))
-        h_prime_temporal = h_prime_temporal.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
-        h_prime_temporal = t.matmul(h_prime_temporal, adj_mat_norm_d12).view(N, H, W, T, V)
+        h_prime_temporal = (
+            h_prime_temporal.permute(1, 2, 3, 0).contiguous().view(N, H * W, T, V)
+        )
+        h_prime_temporal = t.matmul(h_prime_temporal, adj_mat_norm_d12).view(
+            N, H, W, T, V
+        )
 
         # print("********* ensemble shape (temporal) ********", h_prime_temporal.size())
         # print("********* ensemble shape (spatial) ********", h_prime_spatial.size())
 
-        
         h_spatio_temporal = t.cat([h_prime_spatial, h_prime_temporal], dim=3)
         b, h, w, f, v = h_spatio_temporal.size()
         h_spatio_temporal = h_spatio_temporal.reshape((b, h, -1, f)).permute(0, 3, 1, 2)
-        h_spatio_temporal = self.merge_conv(h_spatio_temporal).permute(0, 2, 3, 1).reshape((b, h, w, f//2, v))
+        h_spatio_temporal = (
+            self.merge_conv(h_spatio_temporal)
+            .permute(0, 2, 3, 1)
+            .reshape((b, h, w, f // 2, v))
+        )
         # print("********* ensemble shape (spatio-temporal) ********", h_spatio_temporal.size())
-
 
         return F.elu(h_spatio_temporal)
 

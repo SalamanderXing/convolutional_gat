@@ -77,17 +77,12 @@ class DataLoader:
             tuple(t.stack((s[:4], s[4:])) for s in segments)
         ).transpose(0, 1)
         if self.crop is not None:
-            split_segments = split_segments[
-                :, :, :, :, : self.crop, : self.crop
-            ]
+            split_segments = split_segments[:, :, :, :, : self.crop, : self.crop]
         if self.merge_nodes:
             split_segments = t.cat(
                 tuple(
                     t.cat(
-                        (
-                            split_segments[:, :, :, i],
-                            split_segments[:, :, :, i + 1],
-                        ),
+                        (split_segments[:, :, :, i], split_segments[:, :, :, i + 1],),
                         dim=3,
                     )
                     for i in range(3)
@@ -104,20 +99,12 @@ class DataLoader:
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
         rand_indices = (
-            t.randperm(result.shape[1])
-            if self.shuffle
-            else t.arange(result.shape[1])
+            t.randperm(result.shape[1]) if self.shuffle else t.arange(result.shape[1])
         )
         results = (
-            (
-                result[0][rand_indices].permute(0, 3, 4, 1, 2)
-                - self.normalizing_mean
-            )
+            (result[0][rand_indices].permute(0, 3, 4, 1, 2) - self.normalizing_mean)
             / self.normalizing_var,
-            (
-                result[1][rand_indices].permute(0, 3, 4, 1, 2)
-                - self.normalizing_mean
-            )
+            (result[1][rand_indices].permute(0, 3, 4, 1, 2) - self.normalizing_mean)
             / self.normalizing_var,
         )
         return results
