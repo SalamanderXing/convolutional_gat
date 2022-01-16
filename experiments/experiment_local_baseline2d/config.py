@@ -16,3 +16,4 @@ PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
 DOWNSAMPLE_SIZE = (20, 20)
+BINARIZE_THRESH = 0

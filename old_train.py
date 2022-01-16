@@ -9,8 +9,7 @@ from argparse import ArgumentParser
 from .data_loaders.get_loaders import get_loaders
 from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
-from .unet_model import UnetModel
-from .utils import thresholded_mask_metrics, update_history
+from .utils import thresholded_mask_metrics
 
 # todo: add that it saves the best performing model
 
@@ -37,8 +36,7 @@ def plot_history(
     plt.close()
 
 
-def test(model: nn.Module, device, val_test_loader, flag="val"):
-    binarize_thresh = val_test_loader.normalizing_mean
+def test(model: nn.Module, device, val_test_loader, label="val", binarize_thresh=0):
     thresh_metrics = thresholded_mask_metrics(
         threshold=binarize_thresh,
         var=val_test_loader.normalizing_var,
@@ -59,19 +57,17 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
                 ).cpu()
                 total_length += len(x)
 
-                running_acc += thresh_metrics.acc(y, y_hat).numpy()
-                running_prec += thresh_metrics.precision(y, y_hat).numpy()
-                running_recall += thresh_metrics.recall(y, y_hat).numpy()
+                running_acc += thresh_metrics.acc(y, y_hat)
+                running_prec += thresh_metrics.precision(y, y_hat)
+                running_recall += thresh_metrics.recall(y, y_hat)
 
     model.train()
-    if flag == "test":
-        ipdb.set_trace()
-    return {
-        "val_loss": (running_loss / total_length).item(),
-        "val_acc": (running_acc / total_length).item(),
-        "val_prec": (running_prec / total_length).item(),
-        "val_rec": (running_recall / total_length).item(),
-    }
+    return (
+        (running_loss / total_length).item(),
+        (running_acc.numpy() / total_length).item(),
+        (running_prec.numpy() / total_length).item(),
+        (running_recall.numpy() / total_length).item(),
+    )
 
 
 def visualize_predictions(
@@ -85,7 +81,6 @@ def visualize_predictions(
     plt.clf()
     with t.no_grad():
         device = t.device("cuda" if t.cuda.is_available() else "cpu")
-        merge_nodes = issubclass(UnetModel, type(model))
         loader, _, _ = get_loaders(
             train_batch_size=2,
             test_batch_size=2,
@@ -93,7 +88,6 @@ def visualize_predictions(
             device=device,
             downsample_size=downsample_size,
             dataset=dataset,
-            merge_nodes=merge_nodes,
         )
         model.eval()
         N_COLS = 4  # frames
@@ -101,6 +95,7 @@ def visualize_predictions(
         plt.title(f"Epoch {epoch}")
         _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
         for x, y in loader:
+            # x, y = x[:number_of_preds], y[:number_of_preds]
             for k in range(len(x)):
                 raininess = t.sum(x[k] != 0) / t.prod(t.tensor(x[k].shape))
                 if raininess >= 0.5:
@@ -108,15 +103,7 @@ def visualize_predictions(
                     to_plot = [x[k], y[k], preds[k]]
                     for i, row in enumerate(ax):
                         for j, col in enumerate(row):
-                            # ipdb.set_trace()
-                            col.imshow(
-                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
-                                if not merge_nodes
-                                else to_plot[i]
-                                .cpu()
-                                .detach()
-                                .numpy()[j, : downsample_size[0], : downsample_size[1],]
-                            )
+                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 1])
 
                     row_labels = ["x", "y", "preds"]
                     for ax_, row in zip(ax[:, 0], row_labels):
@@ -146,8 +133,8 @@ def train_single_epoch(
     downsample_size,
     history,
     output_path,
+    binarize_thresh,
 ):
-    merge_nodes = issubclass(UnetModel, type(model))
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
@@ -155,18 +142,18 @@ def train_single_epoch(
         device=device,
         dataset=dataset,
         downsample_size=downsample_size,
-        merge_nodes=merge_nodes,
     )
+    # print(
+    #    f"Using: {device}\n\nSizes:\n train: {train_loader.item_count}\n val: {val_loader.item_count}\n test: {test_loader.item_count}\n"
+    # )
 
     model.train()
     print(f"\nEpoch: {epoch}")
     running_loss = t.tensor(0.0)
     total_length = 0
-    __total_length = 0
     for param_group in optimizer.param_groups:  # Print the updated LR
         print(f"LR: {param_group['lr']}")
     for x, y in tqdm(train_loader):
-        __total_length += len(x)
         if len(x) > 1:
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
@@ -180,24 +167,30 @@ def train_single_epoch(
                 .detach()
                 .cpu()
             )
-    # print(f"{__total_length=}")
     scheduler.step()
     train_loss = (running_loss / total_length).item()
     print(f"Train loss: {round(train_loss, 6)}")
+    val_loss, val_acc, val_prec, val_rec = test(
+        model, device, val_loader, binarize_thresh
+    )
+    # ipdb.set_trace()
+    print(f"Val loss: {round(val_loss, 6)}")
     history["train_loss"].append(train_loss)
-    test_result = test(model, device, val_loader)
-    print(f"Val loss: {round(test_result['val_loss'], 6)}")
-    update_history(history, test_result)
+    history["val_loss"].append(val_loss)
+
+    # history["denorm_mse"].append(denorm_mse)
+    history["val_acc"].append(val_acc)
+    history["val_prec"].append(val_prec)
+    history["val_rec"].append(val_rec)
+
     with open(output_path + "/history.json", "w") as f:
-        json.dump(history, f, indent=4)
-    if len(history["val_loss"]) > 1 and test_result["val_loss"] < min(
-        history["val_loss"][:-1]
-    ):
+        json.dump(history, f)
+    if len(history["val_loss"]) > 1 and val_loss < min(history["val_loss"][:-1]):
         t.save(model.state_dict(), output_path + "/model.pt")
 
 
 def get_number_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return sum(tuple(t.prod(t.tensor(el.shape)) for el in model.parameters()))
 
 
 def train(
@@ -210,7 +203,7 @@ def train(
     epochs=10,
     lr=0.001,
     lr_step=1,
-    gamma=1.0,
+    gamma=1.0,  # 1.0 means disabled
     plot=True,
     criterion=nn.MSELoss(),
     downsample_size=(256, 256),
@@ -218,11 +211,25 @@ def train(
     preprocessed_folder="",
     dataset="kmni",
     test_first=True,
+    binarize_thresh,
 ):
-    device = t.device("cuda" if t.cuda.is_available() else "cpu")
-    history = {"train_loss": []}
+    device = t.device(
+        "cuda" if t.cuda.is_available() else "cpu"
+    )  # Select the GPU device, if there is one available.
+    #
+    # device = t.device('cpu')
+    # optimizer = the procedure for updating the weights of our neural network
+    # optimizer = t.optim.Adam(model.parameters(), lr=lr)
+    # criterion = nn.MSELoss()
+    # criterion = nn.BCELoss()  tested but didn't improve significantly
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+        "val_acc": [],
+        "val_prec": [],
+        "val_rec": [],
+    }
     print(f"Using device: {device}")
-    merge_nodes = model_class == UnetModel
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
@@ -230,14 +237,9 @@ def train(
         device=device,
         dataset=dataset,
         downsample_size=downsample_size,
-        merge_nodes=merge_nodes,
     )
     for x, y in val_loader:
-        if not merge_nodes:
-            _, image_width, image_height, steps, n_vertices = x.shape
-        else:
-            _, image_width, image_height, _ = x.shape
-            n_vertices = 6  # unused in this case
+        B, image_width, image_height, steps, n_vertices = x.shape
         break
     model = model_class(
         image_width=image_width,
@@ -245,17 +247,26 @@ def train(
         n_vertices=n_vertices,
         mapping_type=mapping_type,
     ).to(device)
+
     print(f"Number of parameters: {get_number_parameters(model)}")
     print(f"Using mapping: {model.mapping_type}")
 
-    # summary(model, input_size=x.shape)
+    summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
     scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     if test_first:
-        result = test(model, device, test_loader,)
-        print(f"Test loss (without any training): {result['val_loss']:.6f}")
-        update_history(history, result)
+        test_loss, test_acc, test_prec, test_rec = test(
+            model, device, test_loader, "test", binarize_thresh
+        )
+        print(f"Test loss (without any training): {test_loss}")
+        history["val_loss"].append(test_loss)
+
+        train_loss, train_acc, train_prec, train_rec = test(
+            model, device, train_loader, "test", binarize_thresh
+        )
+        print(f"Train loss (without any training): {train_loss}")
+        history["train_loss"].append(train_loss)
 
     for epoch in range(1, epochs + 1):
         train_single_epoch(
@@ -272,6 +283,7 @@ def train(
             downsample_size,
             history,
             output_path,
+            binarize_thresh,
         )
         visualize_predictions(
             model,
@@ -285,14 +297,16 @@ def train(
             history,
             title="Training History",
             save=True,
-            filename=os.path.join(output_path, f"history_{epoch}.png"),
+            filename=output_path + "/history.png",
         )
-    # test_loss = test(model, device, test_loader, "test")
-    # print(f"Test loss: {round(test_loss['val_loss'], 6)}")
+    test_loss, test_acc, test_prec, test_rec = test(
+        model, device, test_loader, "test", binarize_thresh
+    )
+    print(f"Test loss: {round(test_loss, 6)}")
 
-    # if plot:
-    #   plot_history(history)
-    return history  # , test_loss
+    if plot:
+        plot_history(history)
+    return history, test_loss
 
 
 if __name__ == "__main__":

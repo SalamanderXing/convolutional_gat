@@ -101,10 +101,14 @@ class DataLoader:
         rand_indices = (
             t.randperm(result.shape[1]) if self.shuffle else t.arange(result.shape[1])
         )
+        if self.merge_nodes:
+            result = result.permute(0, 1, 2, 3, 4)
+        else:
+            result = result.permute(0, 1, 4, 5, 2, 3)
         results = (
-            (result[0][rand_indices].permute(0, 3, 4, 1, 2) - self.normalizing_mean)
+            (result[0][rand_indices] - self.normalizing_mean)  # .permute(0, 3, 4, 1, 2)
             / self.normalizing_var,
-            (result[1][rand_indices].permute(0, 3, 4, 1, 2) - self.normalizing_mean)
+            (result[1][rand_indices] - self.normalizing_mean)  # .permute(0, 3, 4, 1, 2)
             / self.normalizing_var,
         )
         return results
@@ -120,6 +124,7 @@ def get_loaders(
     device,
     crop: int = None,
     shuffle: bool = True,
+    merge_nodes: bool = False,
 ):
     train_loader = DataLoader(
         train_batch_size,
@@ -127,6 +132,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
 
     val_loader = DataLoader(
@@ -135,6 +141,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
     test_loader = DataLoader(
         test_batch_size,
@@ -142,6 +149,7 @@ def get_loaders(
         device,
         crop=crop,
         shuffle=shuffle,
+        merge_nodes=merge_nodes,
     )
     return train_loader, val_loader, test_loader
 

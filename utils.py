@@ -64,7 +64,10 @@ class thresholded_mask_metrics:
 
     def binarized_mse(self, y_true, y_pred):
         # Denormalize
-        y_true, y_pred = y_true * self.var + self.mean, y_pred * self.var + self.mean
+        y_true, y_pred = (
+            y_true * self.var + self.mean,
+            y_pred * self.var + self.mean,
+        )
         # Binarize mask
         y_true = self.binarize_mask(y_true)
         y_pred = self.binarize_mask(y_pred)
@@ -147,6 +150,13 @@ def recall(y_true, y_pred):
     FP = ((y_pred == 1) & (y_true == 0)).sum()
     FN = ((y_pred == 0) & (y_true == 1)).sum()
     return TP / (TP + FN)
+
+
+def update_history(history: dict[str, list[float]], data: dict[str, float]):
+    for key, val in data.items():
+        if key not in history:
+            history[key] = []
+        history[key].append(val)
 
 
 def extract_datasets(hdf_file):

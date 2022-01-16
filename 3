@@ -55,7 +55,8 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
 
@@ -115,7 +116,11 @@ def visualize_predictions(
                                 else to_plot[i]
                                 .cpu()
                                 .detach()
-                                .numpy()[j, : downsample_size[0], : downsample_size[1],]
+                                .numpy()[
+                                    j,
+                                    : downsample_size[0],
+                                    : downsample_size[1],
+                                ]
                             )
 
                     row_labels = ["x", "y", "preds"]
@@ -176,7 +181,10 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
                 .detach()
                 .cpu()
             )
@@ -251,7 +259,9 @@ def train(
     # summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     if test_first:
         result = test(model, device, test_loader,)
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
@@ -290,9 +300,9 @@ def train(
     # test_loss = test(model, device, test_loader, "test")
     # print(f"Test loss: {round(test_loss['val_loss'], 6)}")
 
-    # if plot:
-    #   plot_history(history)
-    return history  # , test_loss
+    if plot:
+        plot_history(history)
+    return history, test_loss
 
 
 if __name__ == "__main__":
