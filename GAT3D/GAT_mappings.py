@@ -38,11 +38,20 @@ class SmaAt_UNetMapping(nn.Module):
 
 class ConvBlock2D(nn.Module):
     def __init__(
-        self, in_features, out_features, kernel_size, dropout=0.15, nonlinear=True,
+        self,
+        in_features,
+        out_features,
+        kernel_size,
+        dropout=0.15,
+        nonlinear=True,
     ):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_features, out_features, kernel_size, padding="same", groups=in_features,
+            in_features,
+            out_features,
+            kernel_size,
+            padding="same",
+            groups=in_features,
         )
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear
@@ -58,11 +67,20 @@ class ConvBlock2D(nn.Module):
 
 class ConvBlock3D(nn.Module):
     def __init__(
-        self, in_features, out_features, kernel_size, dropout=0.15, nonlinear=True,
+        self,
+        in_features,
+        out_features,
+        kernel_size,
+        dropout=0.15,
+        nonlinear=True,
     ):
         super().__init__()
         self.conv = nn.Conv3d(
-            4, 4, (3, kernel_size, kernel_size), padding="same", groups=4,
+            4,
+            4,
+            (3, kernel_size, kernel_size),
+            padding="same",
+            groups=4,
         )
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear
