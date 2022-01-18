@@ -12,7 +12,8 @@ def get_loaders(
     *,
     dataset: str = "kmni",
     downsample_size: tuple[int, int] = (256, 256),
-    merge_nodes: bool = False
+    merge_nodes: bool = False,
+    shuffle=True
 ):
     if dataset == "arai":
         return get_loaders_arai(
@@ -30,4 +31,5 @@ def get_loaders(
             device,
             crop=downsample_size[0],
             merge_nodes=merge_nodes,
+            shuffle=shuffle,
         )

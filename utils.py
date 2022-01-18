@@ -157,13 +157,6 @@ def recall(y_true, y_pred):
     return TP / (TP + FN)
 
 
-def update_history(history: dict[str, list[float]], data: dict[str, float]):
-    for key, val in data.items():
-        if key not in history:
-            history[key] = []
-        history[key].append(val)
-
-
 def extract_datasets(hdf_file):
     def h5py_dataset_iterator(g, prefix=""):
         for key in g.keys():

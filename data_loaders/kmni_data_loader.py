@@ -1,11 +1,13 @@
 import torch as t
 from threading import Thread
 import os
+import matplotlib.pyplot as plt
 import numpy as np
 import ipdb
 from enum import Enum, unique
 from tqdm import tqdm
 import json
+from ..preprocessing.utils import listdir
 
 # todo: shuffling
 # todo: fix the fist batch is empty
@@ -24,9 +26,12 @@ class DataLoader:
         merge_nodes: bool = False
     ):
         metadata = t.load(os.path.join(folder, "../metadata.pt"))
+        self.data_folder = folder
         self.normalizing_var = metadata["var"]
         self.normalizing_mean = metadata["mean"]
-        self.normalizing_var[self.normalizing_var == 0] = 1 # otherwise it would cause error
+        self.normalizing_var[
+            self.normalizing_var == 0
+        ] = 1  # otherwise it would cause error
 
         self.merge_nodes = merge_nodes
         self.crop = crop
@@ -44,8 +49,23 @@ class DataLoader:
             self.files = tmp
         self.remainder = self.__read_next_file()
         self.file_length = self.remainder.shape[0] * self.remainder.shape[1]
-        
-       
+
+    def stats(self):
+        # all_training =
+        flat = t.cat(tuple(t.load(fp) for fn, fp in listdir(self.data_folder))).view(-1)
+        bins = np.unique(flat)
+        """
+        hist, _ = np.histogram(flat, bins)
+        plt.plot(np.arange(hist), hist)
+        """
+        norm = (flat - t.mean(self.normalizing_mean)) / t.mean(self.normalizing_var)
+        hist, _ = np.histogram(norm, len(bins))
+        plt.plot(np.arange(len(hist)), hist)
+
+        plt.show()
+        ipdb.set_trace()
+        # plt.hist(flat, bins="auto")
+        # ipdb.set_trace()
 
     def __read_next_file(self) -> t.Tensor:
         if self.file_index == len(self.files):
@@ -79,7 +99,10 @@ class DataLoader:
             split_segments = t.cat(
                 tuple(
                     t.cat(
-                        (split_segments[:, :, :, i], split_segments[:, :, :, i + 1],),
+                        (
+                            split_segments[:, :, :, i],
+                            split_segments[:, :, :, i + 1],
+                        ),
                         dim=3,
                     )
                     for i in range(3)

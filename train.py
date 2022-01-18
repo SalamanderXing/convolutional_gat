@@ -10,7 +10,8 @@ from .data_loaders.get_loaders import get_loaders
 from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
 from .unet_model import UnetModel
-from .utils import thresholded_mask_metrics, update_history
+
+# from .utils import thresholded_mask_metrics, update_history
 
 # todo: add that it saves the best performing model
 
@@ -23,10 +24,12 @@ def plot_history(
 ):
     plt.clf()
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)
@@ -35,6 +38,13 @@ def plot_history(
     else:
         plt.show()
     plt.close()
+
+
+def update_history(history: dict[str, list[float]], data: dict[str, float]):
+    for key, val in data.items():
+        if key not in history:
+            history[key] = []
+        history[key].append(val)
 
 
 def accuracy(y, y_hat, mean):
@@ -51,11 +61,13 @@ def accuracy(y, y_hat, mean):
 
 def test(model: nn.Module, device, val_test_loader, flag="val"):
     binarize_thresh = t.mean(val_test_loader.normalizing_mean)
+    """
     thresh_metrics = thresholded_mask_metrics(
         threshold=binarize_thresh,
         var=t.mean(val_test_loader.normalizing_var),
         mean=t.mean(val_test_loader.normalizing_mean),
     )
+    """
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
@@ -68,25 +80,26 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
                 total_length += len(x)
                 running_acc += accuracy(y, y_hat, 0.04011)
                 # running_acc += thresh_metrics.acc(y, y_hat).numpy()
+                """
                 running_prec += thresh_metrics.precision(
                     y, y_hat
                 ).numpy() * len(x)
                 running_recall += thresh_metrics.recall(
                     y, y_hat
                 ).numpy() * len(x)
+                """
 
     model.train()
     return {
         "val_loss": (running_loss / total_length).item(),
         "val_acc": (running_acc / total_length).item(),
-        "val_prec": (running_prec / total_length).item(),
-        "val_rec": (running_recall / total_length).item(),
+        # "val_prec": (running_prec / total_length).item(),
+        # "val_rec": (running_recall / total_length).item(),
     }
 
 
@@ -177,7 +190,6 @@ def train_single_epoch(
         downsample_size=downsample_size,
         merge_nodes=merge_nodes,
     )
-
     model.train()
     print(f"\nEpoch: {epoch}")
     running_loss = t.tensor(0.0)
@@ -196,10 +208,7 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                )
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
                 .detach()
                 .cpu()
             )
@@ -256,6 +265,7 @@ def train(
         downsample_size=downsample_size,
         merge_nodes=merge_nodes,
     )
+    train_loader.stats()
     for x, y in val_loader:
         if not merge_nodes:
             _, image_width, image_height, steps, n_vertices = x.shape
@@ -275,13 +285,19 @@ def train(
     # summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     if test_first:
-        result = test(model, device, train_loader,)
+        result = test(
+            model,
+            device,
+            train_loader,
+        )
         history["train_loss"].append(result["val_loss"])
-        result = test(model, device, test_loader,)
+        result = test(
+            model,
+            device,
+            test_loader,
+        )
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
         print(json.dumps(result, indent=4))

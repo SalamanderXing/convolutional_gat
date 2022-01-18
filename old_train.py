@@ -22,10 +22,12 @@ def plot_history(
 ):
     plt.clf()
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)
