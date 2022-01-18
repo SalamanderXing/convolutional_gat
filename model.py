@@ -20,7 +20,7 @@ class SpatialModel(nn.Module):
             nfeat=time_steps,
             nhid=time_steps,
             alpha=0.2,
-            nheads=1,
+            nheads=3,
             type_="spatial",
             mapping_type=mapping_type,
             image_height=image_height,
@@ -41,7 +41,7 @@ class SpatialModel(nn.Module):
 
     def forward(self, x):
         x = self.hidden_layer(x)
-        x = self.output_layer(x)
+        # x = self.output_layer(x)
         return x
 
 
