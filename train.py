@@ -47,16 +47,45 @@ def update_history(history: dict[str, list[float]], data: dict[str, float]):
         history[key].append(val)
 
 
-def accuracy(y, y_hat, mean):
+def get_metrics(y, y_hat, mean):
     y = t.clone(y.cpu())
     y_hat = t.clone(y_hat.cpu())
     y[y < mean] = 0
     y[y >= mean] = 1
     y_hat[y_hat < mean] = 0
     y_hat[y_hat >= mean] = 1
-    correct = y == y_hat
-    result = t.sum(correct) / y[0].numel()
+    acc = accuracy(y, y_hat)
+    prec = precision(y, y_hat)
+    # if prec == t.nan:
+    #    ipdb.set_trace()
+    rec = recall(y, y_hat)
+    return acc, prec, rec
+
+
+def accuracy(y, y_hat):
+    return (y == y_hat).sum() / y[0].numel()
+
+
+def precision(y_true, y_pred):
+    TP = ((y_pred == 1) & (y_true == 1)).sum()
+    FP = ((y_pred == 1) & (y_true == 0)).sum()
+    return (TP / (TP + FP)) * len(y_true)
+
+
+def recall(y_true, y_pred):
+    TP = ((y_pred == 1) & (y_true == 1)).sum()
+    # FP = ((y_pred == 1) & (y_true == 0)).sum()
+    FN = ((y_pred == 0) & (y_true == 1)).sum()
+    result = (TP / (TP + FN)) * len(y_true)
+    # jif result.isnan():
+    #    ipdb.set_trace()
     return result
+
+
+def denormalize(x, mean, var):
+    mean = t.mean(mean)
+    var = t.var(var)
+    return x * var + mean
 
 
 def test(model: nn.Module, device, val_test_loader, flag="val"):
@@ -68,6 +97,7 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
         mean=t.mean(val_test_loader.normalizing_mean),
     )
     """
+    # val_test_loader.stats(model)
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
@@ -76,14 +106,43 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
         running_recall = t.tensor(0.0)
         running_denorm_mse = t.tensor(0.0)
         total_length = 0
-        for x, y in tqdm(val_test_loader):
+        mean = val_test_loader.normalizing_mean
+        var = val_test_loader.normalizing_var
+        threshold = (0.5 - t.mean(val_test_loader.normalizing_mean)) / t.mean(
+            val_test_loader.normalizing_var
+        )
+        for i, (x, y) in tqdm(enumerate(val_test_loader)):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
+
+                unique = t.unique(y)
+                threshold = unique[int(len(unique) * (1 / 4))].cpu()
                 total_length += len(x)
-                running_acc += accuracy(y, y_hat, 0.04011)
+                acc, prec, rec = get_metrics(
+                    y.detach(),
+                    y_hat.detach(),
+                    threshold,  # second_min  # 0.04011
+                )
+                running_acc += acc
+                running_prec += prec if not prec.isnan() else 0
+                running_recall += rec if not rec.isnan() else 0
+                running_denorm_mse += (
+                    t.sum(
+                        (
+                            (
+                                denormalize(y, mean, var)
+                                - denormalize(y_hat, mean, var)
+                            )
+                        )
+                        ** 2
+                    )
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                ).cpu()
+
                 # running_acc += thresh_metrics.acc(y, y_hat).numpy()
                 """
                 running_prec += thresh_metrics.precision(
@@ -98,8 +157,9 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
     return {
         "val_loss": (running_loss / total_length).item(),
         "val_acc": (running_acc / total_length).item(),
-        # "val_prec": (running_prec / total_length).item(),
-        # "val_rec": (running_recall / total_length).item(),
+        "val_prec": (running_prec / total_length).item(),
+        "val_rec": (running_recall / total_length).item(),
+        "val_denorm_mse": (running_denorm_mse / total_length).item(),
     }
 
 
@@ -208,7 +268,10 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
                 .detach()
                 .cpu()
             )
@@ -265,7 +328,6 @@ def train(
         downsample_size=downsample_size,
         merge_nodes=merge_nodes,
     )
-    train_loader.stats()
     for x, y in val_loader:
         if not merge_nodes:
             _, image_width, image_height, steps, n_vertices = x.shape
@@ -285,7 +347,9 @@ def train(
     # summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    scheduler = t.optim.lr_scheduler.StepLR(
+        optimizer, step_size=lr_step, gamma=gamma
+    )
     if test_first:
         result = test(
             model,
