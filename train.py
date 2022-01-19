@@ -294,7 +294,7 @@ def train_single_epoch(
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y) - 0.000001 * t.sum(y_hat)
+            loss = criterion(y_hat, y) - 0.01 * (t.sum(y_hat) / y_hat.numel())
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
