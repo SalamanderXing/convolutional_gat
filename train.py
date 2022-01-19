@@ -10,6 +10,7 @@ from .data_loaders.get_loaders import get_loaders
 from .model import SpatialModel, TemporalModel
 import matplotlib.pyplot as plt
 from .unet_model import UnetModel
+import climage
 
 # from .utils import thresholded_mask_metrics, update_history
 
@@ -163,6 +164,35 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
     }
 
 
+def term_display(y, y_hat):
+
+    plt.clf()
+
+    if len(y.shape) == 4:
+        im1 = y[0, 0, :20, :20].detach().cpu()
+        im2 = y_hat[0, 0, :20, :20].detach().cpu()
+    else:
+        im1 = y[0, 0, 0].detach().cpu()
+        im2 = y_hat[0, 0, 0].detach().cpu()
+
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    plt.tight_layout()
+    _fig, ax = plt.subplots(nrows=1, ncols=2)
+    ims = [im1, im2]
+
+    for i, col in enumerate(ax):
+        col.imshow(ims[i])
+
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    plt.savefig("/tmp/im1.png")
+    print(
+        climage.convert(
+            "/tmp/im1.png",
+            is_unicode=True,
+        )
+    )
+
+
 def visualize_predictions(
     model,
     epoch=1,
@@ -222,6 +252,7 @@ def visualize_predictions(
                     plt.savefig(os.path.join(path, f"pred_{epoch}.png"))
                     plt.close()
                     model.train()
+                    term_display(y, preds)
                     return
 
 
@@ -263,7 +294,7 @@ def train_single_epoch(
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y)
+            loss = criterion(y_hat, y) - 0.000001 * t.sum(y_hat)
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
@@ -313,7 +344,7 @@ def train(
     output_path=".",
     preprocessed_folder="",
     dataset="kmni",
-    test_first=True,
+    test_first=False,
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     history = {"train_loss": []}
