@@ -1,9 +1,10 @@
-import torch
+import torch as t
 import torch.nn as nn
 from .GATLayerSpatial import GATLayerSpatial
 from .GATLayerTemporal import GATLayerTemporal
 from .GATLayerMultiStream import GATLayerMultiStream
 import ipdb
+
 
 class GATMultiHead3D(nn.Module):
     def __init__(
@@ -70,6 +71,6 @@ class GATMultiHead3D(nn.Module):
         # x = torch.cat(tuple(att(x) for att in self.attentions), dim=2)
         # ipdb.set_trace()
         # print("inputtttttt", x.size())
-        x = torch.mean(torch.stack([att(x) for att in self.attentions]), dim=0)
+        x = t.mean(t.stack([att(x) for att in self.attentions]), dim=0)
         # print("outputtttttt", x.size())
         return x

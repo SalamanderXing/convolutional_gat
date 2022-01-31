@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from .unet import UNet
 from .GAT_mappings import LinearMapping, SmaAt_UNetMapping, ConvMapping
+import ipdb
 
 
 class GATLayerSpatial(nn.Module):
@@ -77,12 +78,12 @@ class GATLayerSpatial(nn.Module):
         D = Variable(t.diag(t.sum(adj_mat, axis=1)), requires_grad=False)
         D_12 = t.sqrt(t.inverse(D))
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
-
         Wh_ = []
         for i in range(V):
             at = t.zeros(N, H, W, self.out_features).to(self.W.device)
             for j in range(V):
-                at += Wh[:, j, :, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
+                ipdb.set_trace()
+                at += Wh[:, i, j, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
                     1, 1, 1, self.out_features
                 )
             Wh_.append(at)

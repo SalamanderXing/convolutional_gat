@@ -116,8 +116,7 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
 
                 unique = t.unique(y)
@@ -133,12 +132,7 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
                 running_recall += rec if not rec.isnan() else 0
                 running_denorm_mse += (
                     t.sum(
-                        (
-                            (
-                                denormalize(y, mean, var)
-                                - denormalize(y_hat, mean, var)
-                            )
-                        )
+                        ((denormalize(y, mean, var) - denormalize(y_hat, mean, var)))
                         ** 2
                     )
                     / t.prod(t.tensor(y.shape[1:]).to(device))
@@ -294,17 +288,12 @@ def train_single_epoch(
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y) - 0.0005 * (
-                t.sum(y_hat) / y_hat.numel()
-            )
+            loss = criterion(y_hat, y) - 0.0005 * (t.sum(y_hat) / y_hat.numel())
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                )
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
                 .detach()
                 .cpu()
             )
@@ -380,9 +369,7 @@ def train(
     # summary(model, input_size=x.shape)
 
     optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(
-        optimizer, step_size=lr_step, gamma=gamma
-    )
+    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
     if test_first:
         result = test(
             model,
