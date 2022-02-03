@@ -8,7 +8,7 @@
 ### Run by:
 From outside this folder:
 ```
-python -m preprocess.kmni_dataset preprocess \
+python -m preprocessing.kmni_dataset preprocess \
          -i <location of raw data> \
          -o <location where to write data to> \
          (optional) -r <minimum relative ammount of rain pixels in each frame>
