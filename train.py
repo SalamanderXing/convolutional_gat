@@ -51,13 +51,15 @@ def test(model: nn.Module, device, loader, flag="val"):
         for i, (x, y) in tqdm(enumerate(loader)):
             if len(x) > 1:
                 y_hat = model(x)
+                y = t.pow(y, 1 / loader.power)
+                y_hat = t.pow(y_hat, 1 / loader.power)
                 running_loss += (
                     t.sum((y - y_hat) ** 2)
                     / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
 
                 unique = t.unique(y)
-                threshold = unique[int(len(unique) * (1 / 4))].cpu()
+                threshold = unique[int(len(unique) * (1 / 2))].cpu()
                 total_length += len(x)
                 acc, prec, rec = get_metrics(
                     y.detach(),
@@ -228,9 +230,17 @@ def train(
         )
 
     if test_first:
-        result = test(model, device, train_loader,)
+        result = test(
+            model,
+            device,
+            train_loader,
+        )
         history["train_loss"].append(result["val_loss"])
-        result = test(model, device, test_loader,)
+        result = test(
+            model,
+            device,
+            test_loader,
+        )
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
         print(json.dumps(result, indent=4))

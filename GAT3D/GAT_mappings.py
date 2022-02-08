@@ -84,7 +84,7 @@ class ConvBlock3D(nn.Module):
             groups,
             (first_kernel_dim, kernel_size, kernel_size),
             padding="same",
-            groups=groups,
+            # groups=groups, FIXME... maybe??
         )
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear

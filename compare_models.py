@@ -129,4 +129,4 @@ if __name__ == "__main__":
         "local_unet",
         # "local_multi_stream_conv",
     ]
-    compare_models(base_folder, folders, plot_only=False)
+    compare_models(base_folder, folders, out_path='convolutional_gat/models_comparison', plot_only=False)
