@@ -2,6 +2,8 @@ import torch as t
 import torch.nn as nn
 from .GAT3D.GATMultiHead3D import GATMultiHead3D
 
+# from .GAT3D.GATMultistream import GATMultiHead3D
+
 
 class SpatialModel(nn.Module):
     def __init__(
@@ -21,7 +23,7 @@ class SpatialModel(nn.Module):
             nhid=time_steps,
             alpha=0.2,
             nheads=3,
-            type_="spatial",
+            type="spatial",
             mapping_type=mapping_type,
             image_height=image_height,
             image_width=image_width,

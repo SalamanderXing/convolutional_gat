@@ -15,9 +15,9 @@ class GATLayerTemporal(nn.Module):
     # in_feature = out_feature (because here the feature is about the frame number)
     def __init__(
         self,
-        in_features,
-        out_features,
-        alpha,
+        in_features,  # number of timesteps in
+        out_features,  # number of timesteps out
+        alpha,  # leakyrelu parameter
         *,
         image_width: int,
         image_height: int,
@@ -50,31 +50,13 @@ class GATLayerTemporal(nn.Module):
         if len(h.size()) == 5:
             N, H, W, T, V = h.size()  # 32, 5, 35, 35, 4
             h = h.permute(0, 4, 1, 2, 3)
-            # print("five", H)
         else:
-            # print("not five")
             N, V, H, W = h.size()
 
         if self.A.device != self.B.device:
             self.A = self.A.to(self.B.device)
-        # print("=======", h.size())
+
         Wh = self.mapping(h)
-
-        # print("***********", Wh.size())
-
-        # if self.is_conv:
-        #     whs = []
-        #     print(h.size())
-        #     for i in range(h.size()[2]):
-        #         print(h[:, :, i, :, :].size(), h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2).size())
-        #         whi = self.conv_net(h[:, :, i, :, :].squeeze().permute(0, 3, 1, 2)).permute(0, 2, 3, 1)
-        #         whs.append(whi)
-        #     Wh = t.cat(whs, axis=1)
-
-        # if self.is_conv:
-        #     Wh = self.conv_net(h)
-        # else:
-        #     Wh = t.matmul(h, self.W)
 
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = t.matmul(a_input, self.a)
@@ -106,13 +88,13 @@ class GATLayerTemporal(nn.Module):
         return F.elu(h_prime)
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
-        B, M, H, W, T = Wh.shape
-        Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
+        B, V, H, W, T = Wh.shape
+        Wh_repeated_in_chunks = Wh.repeat_interleave(V, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, V, 1, 1, 1)
         all_combinations_matrix = t.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-2
         )
-        return all_combinations_matrix.view(B, M, M, T, 2 * H * W)
+        return all_combinations_matrix.view(B, V, V, T, 2 * H * W)
 
     def __repr__(self):
         return (

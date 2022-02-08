@@ -24,13 +24,17 @@ class LinearMapping(nn.Module):
 class SmaAt_UNetMapping(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
-        self.conv_net = SmaAt_UNet(n_channels=in_features, n_classes=out_features)
+        self.conv_net = SmaAt_UNet(
+            n_channels=in_features, n_classes=out_features
+        )
 
     def forward(self, h):
         whs = []
         for i in range(h.shape[1]):
             # print(i, h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2).size(), "111111111")
-            whi = self.conv_net(h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2))
+            whi = self.conv_net(
+                h[:, i, :, :, :].squeeze(1).permute(0, 3, 1, 2)
+            )
             whs.append(whi)
         Wh = t.stack(whs).permute(1, 0, 3, 4, 2)
         return Wh
@@ -68,19 +72,19 @@ class ConvBlock2D(nn.Module):
 class ConvBlock3D(nn.Module):
     def __init__(
         self,
-        in_features,
-        out_features,
-        kernel_size,
+        groups: int,
+        first_kernel_dim: int,
+        kernel_size: int,
         dropout=0.15,
         nonlinear=True,
     ):
         super().__init__()
         self.conv = nn.Conv3d(
-            4,
-            4,
-            (3, kernel_size, kernel_size),
+            groups,
+            groups,
+            (first_kernel_dim, kernel_size, kernel_size),
             padding="same",
-            groups=4,
+            groups=groups,
         )
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear
@@ -93,17 +97,31 @@ class ConvBlock3D(nn.Module):
 
 
 class ConvMapping(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, attention_type: str):
         super().__init__()
+        self.attention_type = attention_type
+        groups = 4 if attention_type == "spatial" else 6
+        first_kernel_dim = 6 if attention_type == "spatial" else 4
         self.net = nn.Sequential(
             # ConvBlock2D(6, 6, 0.15, False)
-            ConvBlock3D(6, 6, 3, 0.15, True),
+            ConvBlock3D(groups, 2, 3, 0.10, True),
+            ConvBlock3D(groups, 2, 3, 0.10, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
         )
 
+    def resape_input(self, x):
+        pass
+
     def forward(self, x):
-        x = x.permute(0, 4, 1, 2, 3)
+        if self.attention_type == "spatial":
+            x = x.permute(0, 4, 1, 2, 3)
+        else:
+            x = x.permute(0, 1, 4, 2, 3)
+
         x = self.net(x)
-        y_hat = x.permute(0, 2, 3, 4, 1)
+        if self.attention_type == "spatial":
+            y_hat = x.permute(0, 2, 3, 4, 1)
+        else:
+            y_hat = x.permute(0, 1, 3, 4, 2)
         return y_hat

@@ -37,8 +37,17 @@ def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=
     os.system(f"rm {out_dir if out_dir.endswith('/') else out_dir + '/'}*")
     years = listdir(in_dir)
     acc = []
+    coordinates = (
+        (201, 38),
+        (201 - 80, 81),
+        (201 - 80 + 4, 81 + 92),
+        (214, 140),
+        (29, 190),
+        (29 + 10, 186 - 85),
+    )
     rain_credit = 0
     file_index = 0
+    patience = True
     if from_year != -1:
         index = [y[0] for y in years].index(str(from_year))
         years = years[index:]
@@ -57,24 +66,20 @@ def preprocess(in_dir: str, out_dir: str, from_year: int = 2016, rain_threshold=
                     h5py.File(file_path)["image1"]["image_data"][...].astype(np.uint8)
                 )
                 raw_content = raw_content[243:590, 234:512]
-                coordinates = (
-                    (201, 38),
-                    (201 - 80, 81),
-                    (201 - 80 + 4, 81 + 92),
-                    (214, 140),
-                    (29, 190),
-                    (29 + 10, 186 - 85),
-                )
+
                 content_accumulator = []
                 for x, y in coordinates:
                     # draw_rectangle(content, x, y, 80, 80)
                     content_accumulator.append(raw_content[x : x + 80, y : y + 80])
-                content = t.stack(content_accumulator) / 120
+                content = t.stack(content_accumulator)
                 content[content == 255] = 0
                 raininess = 1 - t.sum(content == 0) / t.prod(t.tensor(content.shape))
-                ipdb.set_trace()
                 if raininess >= rain_threshold:
                     acc.append(content)
+                    patience = True
+                elif patience:
+                    acc.append(content)
+                    patience = False
                 elif len(acc) >= 8:
                     tensorized_acc = t.stack(acc)
                     file_name = os.path.join(

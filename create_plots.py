@@ -75,11 +75,7 @@ def create_comparison_plot(
                                 else to_plot[i]
                                 .cpu()
                                 .detach()
-                                .numpy()[
-                                    j,
-                                    : downsample_size[0],
-                                    : downsample_size[1],
-                                ]
+                                .numpy()[j, : downsample_size[0], : downsample_size[1],]
                             )
 
                     for ax_, row in zip(ax[:, 0], row_labels):

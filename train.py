@@ -7,90 +7,26 @@ import json
 import ipdb
 from argparse import ArgumentParser
 from .data_loaders.get_loaders import get_loaders
-from .model import SpatialModel, TemporalModel
+from .GAT3D.GATMultistream import Model
 import matplotlib.pyplot as plt
 from .unet_model import UnetModel
-import climage
+from .utils import (
+    get_metrics,
+    visualize_predictions,
+    update_history,
+    denormalize,
+    plot_history,
+    model_classes,
+    get_number_parameters,
+)
 
 # from .utils import thresholded_mask_metrics, update_history
 
 # todo: add that it saves the best performing model
 
 
-def plot_history(
-    history: dict[str, list[float]],
-    title: str = "Training History",
-    save=False,
-    filename="history",
-):
-    plt.clf()
-    plt.plot(
-        history["train_loss"],
-        label="Train loss",
-    )
-    plt.plot(
-        history["val_loss"],
-        label="Val loss",
-    )
-    plt.legend()
-    plt.title(title)
-    if save:
-        plt.savefig(filename)
-    else:
-        plt.show()
-    plt.close()
-
-
-def update_history(history: dict[str, list[float]], data: dict[str, float]):
-    for key, val in data.items():
-        if key not in history:
-            history[key] = []
-        history[key].append(val)
-
-
-def get_metrics(y, y_hat, mean):
-    y = t.clone(y.cpu())
-    y_hat = t.clone(y_hat.cpu())
-    y[y < mean] = 0
-    y[y >= mean] = 1
-    y_hat[y_hat < mean] = 0
-    y_hat[y_hat >= mean] = 1
-    acc = accuracy(y, y_hat)
-    prec = precision(y, y_hat)
-    # if prec == t.nan:
-    #    ipdb.set_trace()
-    rec = recall(y, y_hat)
-    return acc, prec, rec
-
-
-def accuracy(y, y_hat):
-    return (y == y_hat).sum() / y[0].numel()
-
-
-def precision(y_true, y_pred):
-    TP = ((y_pred == 1) & (y_true == 1)).sum()
-    FP = ((y_pred == 1) & (y_true == 0)).sum()
-    return (TP / (TP + FP)) * len(y_true)
-
-
-def recall(y_true, y_pred):
-    TP = ((y_pred == 1) & (y_true == 1)).sum()
-    # FP = ((y_pred == 1) & (y_true == 0)).sum()
-    FN = ((y_pred == 0) & (y_true == 1)).sum()
-    result = (TP / (TP + FN)) * len(y_true)
-    # jif result.isnan():
-    #    ipdb.set_trace()
-    return result
-
-
-def denormalize(x, mean, var):
-    mean = t.mean(mean)
-    var = t.var(var)
-    return x * var + mean
-
-
-def test(model: nn.Module, device, val_test_loader, flag="val"):
-    binarize_thresh = t.mean(val_test_loader.normalizing_mean)
+def test(model: nn.Module, device, loader, flag="val"):
+    # binarize_thresh = t.mean(val_test_loader.normalizing_mean)
     """
     thresh_metrics = thresholded_mask_metrics(
         threshold=binarize_thresh,
@@ -107,16 +43,17 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
         running_recall = t.tensor(0.0)
         running_denorm_mse = t.tensor(0.0)
         total_length = 0
-        mean = val_test_loader.normalizing_mean
-        var = val_test_loader.normalizing_var
-        threshold = (0.5 - t.mean(val_test_loader.normalizing_mean)) / t.mean(
-            val_test_loader.normalizing_var
-        )
-        for i, (x, y) in tqdm(enumerate(val_test_loader)):
+        # mean = val_test_loader.normalizing_mean
+        # var = val_test_loader.normalizing_var
+        # threshold = (0.5 - t.mean(val_test_loader.normalizing_mean)) / t.mean(
+        #    val_test_loader.normalizing_var
+        # )
+        for i, (x, y) in tqdm(enumerate(loader)):
             if len(x) > 1:
                 y_hat = model(x)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
 
                 unique = t.unique(y)
@@ -130,14 +67,11 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
                 running_acc += acc
                 running_prec += prec if not prec.isnan() else 0
                 running_recall += rec if not rec.isnan() else 0
+
                 running_denorm_mse += (
-                    t.sum(
-                        ((denormalize(y, mean, var) - denormalize(y_hat, mean, var)))
-                        ** 2
-                    )
+                    t.sum(((y - y_hat) * loader.normalizing_max) ** 2)
                     / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
-
                 # running_acc += thresh_metrics.acc(y, y_hat).numpy()
                 """
                 running_prec += thresh_metrics.precision(
@@ -158,98 +92,6 @@ def test(model: nn.Module, device, val_test_loader, flag="val"):
     }
 
 
-def term_display(y, y_hat):
-
-    plt.clf()
-
-    if len(y.shape) == 4:
-        im1 = y[0, 0, :20, :20].detach().cpu()
-        im2 = y_hat[0, 0, :20, :20].detach().cpu()
-    else:
-        im1 = y[0, 0, 0].detach().cpu()
-        im2 = y_hat[0, 0, 0].detach().cpu()
-
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    plt.tight_layout()
-    _fig, ax = plt.subplots(nrows=1, ncols=2)
-    ims = [im1, im2]
-
-    for i, col in enumerate(ax):
-        col.imshow(ims[i])
-
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    plt.savefig("/tmp/im1.png")
-    print(
-        climage.convert(
-            "/tmp/im1.png",
-            is_unicode=True,
-        )
-    )
-
-
-def visualize_predictions(
-    model,
-    epoch=1,
-    path="",
-    downsample_size=(256, 256),
-    preprocessed_folder: str = "",
-    dataset="kmni",
-):
-    plt.clf()
-    with t.no_grad():
-        device = t.device("cuda" if t.cuda.is_available() else "cpu")
-        merge_nodes = issubclass(UnetModel, type(model))
-        loader, _, _ = get_loaders(
-            train_batch_size=2,
-            test_batch_size=2,
-            preprocessed_folder=preprocessed_folder,
-            device=device,
-            downsample_size=downsample_size,
-            dataset=dataset,
-            merge_nodes=merge_nodes,
-        )
-        model.eval()
-        N_COLS = 4  # frames
-        N_ROWS = 3  # x, y, preds
-        plt.title(f"Epoch {epoch}")
-        _fig, ax = plt.subplots(nrows=N_ROWS, ncols=N_COLS)
-        for x, y in loader:
-            for k in range(len(x)):
-                raininess = t.sum(x[k] != 0) / t.prod(t.tensor(x[k].shape))
-                if raininess >= 0.5:
-                    preds = model(x)
-                    to_plot = [x[k], y[k], preds[k]]
-                    for i, row in enumerate(ax):
-                        for j, col in enumerate(row):
-                            # ipdb.set_trace()
-                            col.imshow(
-                                to_plot[i].cpu().detach().numpy()[:, :, j, 1]
-                                if not merge_nodes
-                                else to_plot[i]
-                                .cpu()
-                                .detach()
-                                .numpy()[
-                                    j,
-                                    : downsample_size[0],
-                                    : downsample_size[1],
-                                ]
-                            )
-
-                    row_labels = ["x", "y", "preds"]
-                    for ax_, row in zip(ax[:, 0], row_labels):
-                        ax_.set_ylabel(row)
-
-                    col_labels = ["frame1", "frame2", "frame3", "frame4"]
-                    for ax_, col in zip(ax[0, :], col_labels):
-                        ax_.set_title(col)
-
-                    plt.savefig(os.path.join(path, f"pred_{epoch}.png"))
-                    plt.close()
-                    model.train()
-                    term_display(y, preds)
-                    return
-
-
 def train_single_epoch(
     epoch: int,
     optimizer,
@@ -265,7 +107,6 @@ def train_single_epoch(
     history,
     output_path,
 ):
-    merge_nodes = issubclass(UnetModel, type(model))
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
@@ -273,7 +114,7 @@ def train_single_epoch(
         device=device,
         dataset=dataset,
         downsample_size=downsample_size,
-        merge_nodes=merge_nodes,
+        merge_nodes=False,
     )
     model.train()
     print(f"\nEpoch: {epoch}")
@@ -288,59 +129,62 @@ def train_single_epoch(
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y) - 0.0005 * (t.sum(y_hat) / y_hat.numel())
+            loss = criterion(y_hat, y) - 0.0005 * (
+                t.sum(y_hat) / y_hat.numel()
+            )
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
+                (
+                    t.sum((y_hat - y) ** 2)
+                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                )
                 .detach()
                 .cpu()
             )
     # print(f"{__total_length=}")
-    scheduler.step()
     train_loss = (running_loss / total_length).item()
     print(f"Train loss: {round(train_loss, 6)}")
     history["train_loss"].append(train_loss)
     test_result = test(model, device, val_loader)
+    scheduler.step(test_result["val_loss"])
     # print(f"Val loss: {round(test_result['val_loss'], 6)}")
     print(json.dumps(test_result, indent=4))
     update_history(history, test_result)
-    with open(output_path + "/history.json", "w") as f:
+    with open(os.path.join(output_path, "history.json"), "w") as f:
         json.dump(history, f, indent=4)
-    if len(history["val_loss"]) > 1 and test_result["val_loss"] < min(
+    if (len(history["val_loss"]) == 1) or test_result["val_loss"] < min(
         history["val_loss"][:-1]
     ):
-        t.save(model.state_dict(), output_path + "/model.pt")
-
-
-def get_number_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print("Saving model.")
+        t.save(model.state_dict(), os.path.join(output_path, "model.pt"))
 
 
 def train(
     *,
-    model_class,
-    optimizer_class,
+    model_type,
+    optimizer,
     mapping_type,
-    train_batch_size=1,
-    test_batch_size=100,
-    epochs=10,
-    lr=0.001,
-    lr_step=1,
-    gamma=1.0,
+    output_path,
+    train_batch_size,
+    test_batch_size,
+    epochs,
+    learning_rate,
+    lr_step,
+    gamma,
     plot=True,
     criterion=nn.MSELoss(),
     downsample_size=(256, 256),
-    output_path=".",
     preprocessed_folder="",
     dataset="kmni",
     test_first=False,
+    reduce_lr_on_plateau=False,
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     history = {"train_loss": []}
     print(f"Using device: {device}")
-    merge_nodes = model_class == UnetModel
+    merge_nodes = False
     train_loader, val_loader, test_loader = get_loaders(
         train_batch_size=train_batch_size,
         test_batch_size=test_batch_size,
@@ -357,31 +201,36 @@ def train(
             _, image_width, image_height, _ = x.shape
             n_vertices = 6  # unused in this case
         break
+    model_class = model_classes[model_type]
     model = model_class(
         image_width=image_width,
         image_height=image_height,
         n_vertices=n_vertices,
+        attention_type=model_type,
         mapping_type=mapping_type,
     ).to(device)
+
     print(f"Number of parameters: {get_number_parameters(model)}")
     print(f"Using mapping: {model.mapping_type}")
 
     # summary(model, input_size=x.shape)
 
-    optimizer = optimizer_class(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = t.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=gamma)
+    optimizer = optimizer(
+        model.parameters(), lr=learning_rate, weight_decay=0.01
+    )
+    if not reduce_lr_on_plateau:
+        scheduler = t.optim.lr_scheduler.StepLR(
+            optimizer, step_size=lr_step, gamma=gamma
+        )
+    else:
+        scheduler = t.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, "min", patience=0, verbose=True, factor=0.5
+        )
+
     if test_first:
-        result = test(
-            model,
-            device,
-            train_loader,
-        )
+        result = test(model, device, train_loader,)
         history["train_loss"].append(result["val_loss"])
-        result = test(
-            model,
-            device,
-            test_loader,
-        )
+        result = test(model, device, test_loader,)
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
         print(json.dumps(result, indent=4))

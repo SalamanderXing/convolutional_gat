@@ -96,9 +96,7 @@ def merge(files, new_files):
     files += new_files[1:]
 
 
-def merge_days(
-    accumulator: dict,
-) -> dict[str, dict[tuple[str, str], list[list[str]]]]:
+def merge_days(accumulator: dict,) -> dict[str, dict[tuple[str, str], list[list[str]]]]:
     fixed_acc = {}
     for region, var_acc in accumulator.items():
         fixed_acc[region] = {}
@@ -199,8 +197,7 @@ def preprocess(
         out_condition_path = os.path.join(out_path, condition)
         mkdir(out_condition_path)
         days = sorted(
-            (d[0] for d in listdir(os.path.join(in_path, "R1", condition))),
-            key=int,
+            (d[0] for d in listdir(os.path.join(in_path, "R1", condition))), key=int,
         )
         accumulator = {}
         for day in tqdm(days):

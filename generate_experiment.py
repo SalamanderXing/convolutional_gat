@@ -12,7 +12,9 @@ def generate_experiment(argv: list[str]):
     current_dir = str(pathlib.Path(__file__).parent.resolve())
     exp_path = current_dir + "/experiments/" + argv
     variables = {}
+
     exec(open(exp_path + "/config.py").read(), variables)
+    variables["OUTPUT_PATH"] = exp_path
     print(
         json.dumps(
             {
@@ -24,7 +26,9 @@ def generate_experiment(argv: list[str]):
             default=str,
         )
     )
-    model_class = variables["MODEL"]
+    variables = {k.lower(): v for k, v in variables.items() if k.isupper()}
+    """
+    model_type = variables["MODEL_TYPE"]
     mapping_type = variables["MAPPING_TYPE"]
     epochs = variables["EPOCHS"]
     train_batch_size = variables["TRAIN_BATCH_SIZE"]
@@ -38,24 +42,8 @@ def generate_experiment(argv: list[str]):
     criterion = variables["CRITERION"]
     optimizer_class = variables["OPTIMIZER"]
     downsample_size = variables["DOWNSAMPLE_SIZE"]
-
-    history = train(
-        model_class=model_class,
-        mapping_type=mapping_type,
-        optimizer_class=optimizer_class,
-        train_batch_size=train_batch_size,
-        test_batch_size=test_batch_size,
-        epochs=epochs,
-        lr=learning_rate,
-        lr_step=lr_step,
-        gamma=gamma,
-        plot=plot,
-        criterion=criterion,
-        downsample_size=downsample_size,
-        output_path=exp_path,
-        preprocessed_folder=preprocessed_folder,
-        dataset=dataset,
-    )
+    """
+    history = train(**variables)
 
 
 if __name__ == "__main__":

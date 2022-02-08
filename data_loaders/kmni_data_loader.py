@@ -23,16 +23,13 @@ class DataLoader:
         time_steps: int = 4,
         crop=None,
         shuffle: bool = True,
-        merge_nodes: bool = False
+        merge_nodes: bool = False,
+        power: float = 1 / 4
     ):
-        metadata = t.load(os.path.join(folder, "../metadata.pt"))
+        self.power = t.tensor(power)
+        # metadata = t.load(os.path.join(folder, "../metadata.pt"))
         self.data_folder = folder
-        self.normalizing_var = metadata["var"]
-        self.normalizing_mean = metadata["mean"]
-        self.normalizing_var[
-            self.normalizing_var == 0
-        ] = 1  # otherwise it would cause error
-
+        self.normalizing_max = 254
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
@@ -77,7 +74,8 @@ class DataLoader:
 
     def __segmentify(self, data: t.Tensor) -> t.Tensor:
         data = data[: (len(data) // 8) * 8]
-        data = (data - self.normalizing_mean) / self.normalizing_var
+        norm_data = data / self.normalizing_max
+        data = t.pow(norm_data, self.power)
         segments = t.stack(
             tuple(
                 el
@@ -99,10 +97,7 @@ class DataLoader:
             split_segments = t.cat(
                 tuple(
                     t.cat(
-                        (
-                            split_segments[:, :, :, i],
-                            split_segments[:, :, :, i + 1],
-                        ),
+                        (split_segments[:, :, :, i], split_segments[:, :, :, i + 1],),
                         dim=3,
                     )
                     for i in range(3)

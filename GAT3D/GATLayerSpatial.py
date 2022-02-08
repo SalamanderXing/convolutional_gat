@@ -59,11 +59,6 @@ class GATLayerSpatial(nn.Module):
 
         Wh = self.mapping(h)
 
-        # if self.is_conv:
-        #     Wh = self.conv(h)
-        # else:
-        #     Wh = t.matmul(h, self.W)
-
         a_input = self.batch_prepare_attentional_mechanism_input(Wh)
         e = t.matmul(a_input, self.a)
         e = self.leakyrelu(e.squeeze(-1))
@@ -82,32 +77,31 @@ class GATLayerSpatial(nn.Module):
         for i in range(V):
             at = t.zeros(N, H, W, self.out_features).to(self.W.device)
             for j in range(V):
-                ipdb.set_trace()
-                at += Wh[:, i, j, :, :] * attention[:, i, j, :, :].unsqueeze(3).repeat(
-                    1, 1, 1, self.out_features
-                )
+                at += Wh[:, i, :, :, :] * attention[:, i, j, :, :].unsqueeze(
+                    3
+                )  # .repeat(1, 1, 1, self.out_features) # was this useful??
             Wh_.append(at)
-
-        h_prime = t.stack((Wh_))
         h_prime = t.stack((Wh_))
         h_prime = (
-            h_prime.permute(1, 3, 4, 2, 0)
-            .contiguous()
-            .view(N, H, W * self.out_features, V)
+            h_prime.permute(1, 3, 4, 2, 0).contiguous()
+            # .view(N, H, W * self.out_features, V) was this useful??
         )
-        h_prime = t.matmul(h_prime, adj_mat_norm_d12).view(
-            N, H, W, self.out_features, V
-        )
+        # ipdb.set_trace()
+        h_prime = t.matmul(h_prime, adj_mat_norm_d12).permute(0, 1, 3, 2, 4)
+        # .view( # this was the bug!
+        #    N, H, W, self.out_features, V
+        # )
+        # ipdb.set_trace()
         return F.elu(h_prime)
 
     def batch_prepare_attentional_mechanism_input(self, Wh):
-        B, M, H, W, T = Wh.shape
-        Wh_repeated_in_chunks = Wh.repeat_interleave(M, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, M, 1, 1, 1)
+        B, V, H, W, T = Wh.shape
+        Wh_repeated_in_chunks = Wh.repeat_interleave(V, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, V, 1, 1, 1)
         all_combinations_matrix = t.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-1
         )
-        return all_combinations_matrix.view(B, M, M, H, W, 2 * T)
+        return all_combinations_matrix.view(B, V, V, H, W, 2 * T)
 
     def __repr__(self):
         return (
