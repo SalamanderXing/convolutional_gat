@@ -1,0 +1,20 @@
+{
+    "local_temporal_conv": {
+        "val_loss": 0.0013094472233206034,
+        "val_acc": 0.9490617513656616,
+        "val_prec": 0.0008900609100237489,
+        "val_rec": 0.00941566750407219,
+        "val_denorm_mse": 84.48019409179688,
+        "forward_pass_time_s": 0.031243287801742552,
+        "n_parameters": 43936
+    },
+    "local_unet": {
+        "val_loss": 0.0011540682753548026,
+        "val_acc": 0.951805830001831,
+        "val_prec": 0.409564733505249,
+        "val_rec": 0.3402058780193329,
+        "val_denorm_mse": 74.4558334350586,
+        "forward_pass_time_s": 0.04241661381721497,
+        "n_parameters": 4032548
+    }
+}
