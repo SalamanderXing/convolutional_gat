@@ -9,9 +9,6 @@ from tqdm import tqdm
 import json
 from ..preprocessing.utils import listdir
 
-# todo: shuffling
-# todo: fix the fist batch is empty
-
 
 class DataLoader:
     def __init__(
@@ -27,9 +24,10 @@ class DataLoader:
         power: float = 1.0
     ):
         self.power = t.tensor(power)
-        # metadata = t.load(os.path.join(folder, "../metadata.pt"))
+        with open(os.path.join(folder, "../metadata.json")) as f:
+            metadata = json.load(f)
         self.data_folder = folder
-        self.normalizing_max = 254
+        self.normalizing_max = metadata['max']
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device

@@ -87,20 +87,21 @@ def preprocess(
                     #    np.uint8
                     # )
                 )
-                max_val = max(t.max(raw_content).item(), max_val)
-                min_val = min(t.min(raw_content).item(), min_val)
                 raw_content = raw_content[
                     243:590, 234:512
                 ]  # subsample the image
 
                 # List comprehension is faster most of the time
-                content_accumulator = [
+                content_accumulator = tuple(
                     raw_content[x : x + 80, y : y + 80] for x, y in coordinates
-                ]
+                )
                 content = t.stack(
                     content_accumulator
                 )  # merge them into one tensor
                 content[content == 65535] = 0  # set NaNs to zero
+                max_val = max(t.max(content).item(), max_val)
+                min_val = min(t.min(content).item(), min_val)
+
                 raininess = (
                     1 - t.sum(content == 0) / content.numel()
                 )  # compute raininess of single image
@@ -124,7 +125,7 @@ def preprocess(
                     file_index += 1
                 else:  # if the size is too small, discard the data
                     acc = []
-            if len(acc) > 8:
+            if len(acc) >= 8:
                 tensorized_acc = t.stack(acc)
                 file_name = os.path.join(
                     out_dir, f'{str(file_index).rjust(10, "0")}.pt'
@@ -132,7 +133,7 @@ def preprocess(
                 acc = []
                 t.save(tensorized_acc, file_name)
                 file_index += 1
-    with open(os.path.join(out_dir, "metadata.json"), "w") as f:
+    with open(os.path.join(out_dir, "../metadata.json"), "w") as f:
         json.dump({"max": max_val, "min": min_val}, f)
 
 
