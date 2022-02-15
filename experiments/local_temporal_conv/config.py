@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "temporal"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_plus_preprocessed_tmp"
 MAPPING_TYPE = "conv"
 DATASET = "kmni"
 EPOCHS = 30
