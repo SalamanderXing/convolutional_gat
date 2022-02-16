@@ -9,9 +9,6 @@ from tqdm import tqdm
 import json
 from ..preprocessing.utils import listdir
 
-# todo: shuffling
-# todo: fix the fist batch is empty
-
 
 class DataLoader:
     def __init__(
@@ -24,12 +21,17 @@ class DataLoader:
         crop=None,
         shuffle: bool = True,
         merge_nodes: bool = False,
-        power: float = 1 / 4
+        power: float = 1.0
     ):
         self.power = t.tensor(power)
-        # metadata = t.load(os.path.join(folder, "../metadata.pt"))
+        with open(os.path.join(folder, "../metadata.json")) as f:
+            metadata = json.load(f)
         self.data_folder = folder
+<<<<<<< HEAD
         self.normalizing_max = 248
+=======
+        self.normalizing_max = metadata['max']
+>>>>>>> ba08d671a0d21043930f05f8c0a610184721c9a6
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
@@ -49,13 +51,17 @@ class DataLoader:
 
     def stats(self):
         # all_training =
-        flat = t.cat(tuple(t.load(fp) for fn, fp in listdir(self.data_folder))).view(-1)
+        flat = t.cat(
+            tuple(t.load(fp) for fn, fp in listdir(self.data_folder))
+        ).view(-1)
         bins = np.unique(flat)
         """
         hist, _ = np.histogram(flat, bins)
         plt.plot(np.arange(hist), hist)
         """
-        norm = (flat - t.mean(self.normalizing_mean)) / t.mean(self.normalizing_var)
+        norm = (flat - t.mean(self.normalizing_mean)) / t.mean(
+            self.normalizing_var
+        )
         hist, _ = np.histogram(norm, len(bins))
         plt.plot(np.arange(len(hist)), hist)
 
@@ -93,12 +99,17 @@ class DataLoader:
             tuple(t.stack((s[:4], s[4:])) for s in segments)
         ).transpose(0, 1)
         if self.crop is not None:
-            split_segments = split_segments[:, :, :, :, : self.crop, : self.crop]
+            split_segments = split_segments[
+                :, :, :, :, : self.crop, : self.crop
+            ]
         if self.merge_nodes:
             split_segments = t.cat(
                 tuple(
                     t.cat(
-                        (split_segments[:, :, :, i], split_segments[:, :, :, i + 1],),
+                        (
+                            split_segments[:, :, :, i],
+                            split_segments[:, :, :, i + 1],
+                        ),
                         dim=3,
                     )
                     for i in range(3)
@@ -115,7 +126,9 @@ class DataLoader:
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
         rand_indices = (
-            t.randperm(result.shape[1]) if self.shuffle else t.arange(result.shape[1])
+            t.randperm(result.shape[1])
+            if self.shuffle
+            else t.arange(result.shape[1])
         )
         if self.merge_nodes:
             result = result.permute(0, 1, 2, 3, 4)

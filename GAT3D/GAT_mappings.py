@@ -72,8 +72,8 @@ class ConvBlock2D(nn.Module):
 class ConvBlock3D(nn.Module):
     def __init__(
         self,
-        groups: int,
-        groups_out: int,
+        chin: int,
+        chout: int,
         first_kernel_dim: int,
         kernel_size: int,
         dropout=0.15,
@@ -81,8 +81,8 @@ class ConvBlock3D(nn.Module):
     ):
         super().__init__()
         self.conv = nn.Conv3d(
-            groups,
-            groups_out,
+            chin,
+            chout,
             (first_kernel_dim, kernel_size, kernel_size),
             padding="same",
             # groups=groups, FIXME... maybe??
@@ -105,10 +105,10 @@ class ConvMapping(nn.Module):
         first_kernel_dim = 6 if attention_type == "spatial" else 4
         self.net = nn.Sequential(
             # ConvBlock2D(6, 6, 0.15, False)
-            ConvBlock3D(groups, groups * 2, 2, 5, 0.10, True),
-            ConvBlock3D(groups * 2, groups * 3, 2, 5, 0.10, True),
-            ConvBlock3D(groups * 3, groups * 2, 2, 5, 0.10, True),
-            ConvBlock3D(groups * 2, groups, 2, 5, 0.10, True),
+            ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 2, groups * 3, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 3, groups * 2, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
         )

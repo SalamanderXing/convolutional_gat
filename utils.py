@@ -43,7 +43,12 @@ def term_display(y, y_hat):
 
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
     plt.savefig("/tmp/im1.png")
-    print(climage.convert("/tmp/im1.png", is_unicode=True,))
+    print(
+        climage.convert(
+            "/tmp/im1.png",
+            is_unicode=True,
+        )
+    )
 
 
 def visualize_predictions(
@@ -100,7 +105,7 @@ def visualize_predictions(
                     plt.savefig(save_path)
                     plt.close()
                     model.train()
-                    term_display(y, preds)
+                    # term_display(y, preds)
                     return
     print("Raininess threshold too strict, hasn't found anything")
 
@@ -113,10 +118,12 @@ def plot_history(
 ):
     plt.clf()
     plt.plot(
-        history["train_loss"], label="Train loss",
+        history["train_loss"],
+        label="Train loss",
     )
     plt.plot(
-        history["val_loss"], label="Val loss",
+        history["val_loss"],
+        label="Val loss",
     )
     plt.legend()
     plt.title(title)

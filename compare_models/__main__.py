@@ -2,12 +2,13 @@ from argparse import ArgumentParser
 import os
 import matplotlib.pyplot as plt
 import torch as t
-from .data_loaders.get_loaders import get_loaders
-from .GAT3D.GATMultistream import Model
-from .train import test
+from ..data_loaders.get_loaders import get_loaders
+from ..GAT3D.GATMultistream import Model
+from ..train import test
 import json
 import time
-from .utils import get_number_parameters, model_classes
+from ..utils import get_number_parameters, model_classes
+import ipdb
 
 
 def get_metrics(models, models_folders, preprocessed_folder, downsample_size):
@@ -63,6 +64,24 @@ def plot(out_path, loader, models):
                 return
 
 
+def json_to_table(data: dict, out_path: str):
+    result = "<table>"
+    model_keys = list(data.keys())
+    result += f'<head><th>{"".join("<td>"+el.replace("_", " ") +"</td>" for el in model_keys)}</th></head><tbody>'
+
+    feature_keys = data[list(data.keys())[0]].keys()
+    for feature_key in feature_keys:
+        result += f"<tr><td>{feature_key.replace('_',' ')}</td>"
+        for model_key in model_keys:
+            feature = data[model_key][feature_key]
+            result += f"<td>{feature:.5f}</td>"
+        result += "</tr>"
+    result += "</tbody></table>"
+    with open(os.path.join(out_path, "results.html"), "w") as f:
+        f.write(result)
+    return result
+
+
 def compare_models(
     base_path: str,
     folders: list[str],
@@ -91,9 +110,11 @@ def compare_models(
         models = []
         for folder in folders:
             data_folder = os.path.join(base_path, folder)
+            model_path = os.path.join(data_folder, "model.pt")
             config = {}
             exec(
-                open(os.path.join(data_folder, "config.py")).read(), config,
+                open(os.path.join(data_folder, "config.py")).read(),
+                config,
             )
             model_class = model_classes[config["MODEL_TYPE"]]
             model = model_class(
@@ -104,17 +125,16 @@ def compare_models(
                 mapping_type=config["MAPPING_TYPE"],
             ).to(device)
             try:
-                model.load_state_dict(
-                    t.load(os.path.join(data_folder, "model.pt"))
-                )
+                model.load_state_dict(t.load(model_path))
             except Exception:
-                raise ValueError(f"error: {folder}")
+                raise ValueError(f"error: {model_path}")
             model.eval()
             models.append(model)
         if not plot_only:
             results = get_metrics(
                 models, folders, preprocessed_folder, downsample_size
             )
+            print(json_to_table(results, out_path))
             print(json.dumps(results, indent=4))
             with open(os.path.join(out_path, "results.json"), "w") as f:
                 json.dump(results, f, indent=4)
@@ -125,8 +145,13 @@ if __name__ == "__main__":
     base_folder = "convolutional_gat/experiments"
     folders = [
         "local_temporal_conv",
-        "local_spatial_conv",
+        # "local_spatial_conv",
         "local_unet",
         # "local_multi_stream_conv",
     ]
-    compare_models(base_folder, folders, out_path='convolutional_gat/models_comparison', plot_only=False)
+    compare_models(
+        base_folder,
+        folders,
+        out_path="convolutional_gat/compare_models/results",
+        plot_only=False,
+    )
