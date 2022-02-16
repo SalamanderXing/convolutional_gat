@@ -22,6 +22,8 @@ preprocessed_prec/
 # preprocessing
 preprocessed_data/
 
+download_zip_data.py
+
 # Distribution / packaging
 .Python
 build/

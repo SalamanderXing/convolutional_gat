@@ -29,7 +29,7 @@ class DataLoader:
         self.power = t.tensor(power)
         # metadata = t.load(os.path.join(folder, "../metadata.pt"))
         self.data_folder = folder
-        self.normalizing_max = 254
+        self.normalizing_max = 248
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
@@ -74,6 +74,7 @@ class DataLoader:
 
     def __segmentify(self, data: t.Tensor) -> t.Tensor:
         data = data[: (len(data) // 8) * 8]
+        # norm_data = t.clamp(data / self.normalizing_max, min=0., max=1.)
         norm_data = data / self.normalizing_max
         data = t.pow(norm_data, self.power)
         segments = t.stack(

@@ -18,7 +18,7 @@ class Model(nn.Module):
         attention_type: str = "multi_istream",
         time_steps: int = 4,
         mapping_type="linear",
-        n_heads_per_layer=(4, 4),
+        n_heads_per_layer=(3, 3),
     ):
 
         super().__init__()
