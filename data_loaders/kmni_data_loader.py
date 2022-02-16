@@ -21,13 +21,16 @@ class DataLoader:
         crop=None,
         shuffle: bool = True,
         merge_nodes: bool = False,
-        power: float = 1.0
+        power: float = 1,
+        max_out: float = 0.005
     ):
+
         self.power = t.tensor(power)
         with open(os.path.join(folder, "../metadata.json")) as f:
             metadata = json.load(f)
         self.data_folder = folder
-        self.normalizing_max = metadata['max']
+        self.normalizing_max = metadata["max"]
+        self.artificial_max = self.normalizing_max * max_out
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
@@ -76,7 +79,8 @@ class DataLoader:
 
     def __segmentify(self, data: t.Tensor) -> t.Tensor:
         data = data[: (len(data) // 8) * 8]
-        norm_data = data / self.normalizing_max
+        data[data >= self.artificial_max] = self.artificial_max
+        norm_data = data / self.artificial_max
         data = t.pow(norm_data, self.power)
         segments = t.stack(
             tuple(

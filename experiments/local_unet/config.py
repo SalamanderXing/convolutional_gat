@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "unet"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_plus_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"
 EPOCHS = 10

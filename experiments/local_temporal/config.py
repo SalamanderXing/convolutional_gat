@@ -4,7 +4,7 @@ import torch.nn as nn
 # from convolutional_gat.model import TemporalModel, SpatialModel
 
 MODEL_TYPE = "temporal"
-PREPROCESSED_FOLDER = "/mnt2/20_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"
 EPOCHS = 10

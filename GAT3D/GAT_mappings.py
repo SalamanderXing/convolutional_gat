@@ -11,7 +11,7 @@ from .smaat_unet.SmaAt_UNet import SmaAt_UNet
 
 
 class LinearMapping(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, mapping_type='temporal', in_features=4, out_features=4):
         super().__init__()
         self.W = nn.Parameter(t.empty(size=(in_features, out_features)))
         self.do = nn.Dropout(0.2)
@@ -105,10 +105,11 @@ class ConvMapping(nn.Module):
         first_kernel_dim = 6 if attention_type == "spatial" else 4
         self.net = nn.Sequential(
             # ConvBlock2D(6, 6, 0.15, False)
-            ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 2, groups * 3, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 3, groups * 2, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
+            ConvBlock3D(groups, groups, 2, 3, 0.10, True),
+            #ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
+            #ConvBlock3D(groups * 2, groups * 3, 2, 3, 0.10, True),
+            #ConvBlock3D(groups * 3, groups * 2, 2, 3, 0.10, True),
+            #ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
         )
