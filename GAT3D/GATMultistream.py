@@ -41,7 +41,7 @@ class Model(nn.Module):
         )
 
     def forward(self, x):
-        return t.sigmoid(self.layers(x))
+        return self.layers(x)
 
 
 class GATMultiHead3D(nn.Module):
