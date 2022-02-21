@@ -14,6 +14,7 @@ class UnetModel(nn.Module):
         n_vertices: int,
         attention_type: str,
         mapping_type: str = "conv",
+        n_heads_per_layer=(1,)
     ):
         super().__init__()
         self.mapping_type = mapping_type

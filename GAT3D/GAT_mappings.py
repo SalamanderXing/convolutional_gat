@@ -86,16 +86,27 @@ class ConvBlock3D(nn.Module):
             chout,
             (first_kernel_dim, kernel_size, kernel_size),
             padding="same",
-            # groups=groups, FIXME... maybe??
         )
+        self.expansion = chout / chin
+        self.bn = nn.BatchNorm3d(chin)
         self.do = nn.Dropout(dropout)
         self.skip = skip
         self.nonlinear = nonlinear
 
     def forward(self, x):
+        # y_hat = self.bn(x)
         y_hat = self.do(self.conv(x))
         if self.nonlinear:
             y_hat = F.relu(y_hat)
+        if self.skip:
+            if self.expansion > 1:
+                x_resized = x.repeat(1, 2, 1, 1, 1)
+                y_hat = y_hat.clone() + x_resized
+                y_hat = F.relu(y_hat)
+            else:
+                y_hat = y_hat.clone() + x[:, :y_hat.shape[1]]
+                y_hat = F.relu(y_hat)
+
         return y_hat
 
 
@@ -110,10 +121,10 @@ class ConvMapping(nn.Module):
             # ConvBlock2D(6, 6, 0.15, False)
             # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
             ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 2, groups * 3, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 3, groups * 4, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 4, groups * 3, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 3, groups * 2, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
+            ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.10, True),
             ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
@@ -134,4 +145,4 @@ class ConvMapping(nn.Module):
             y_hat = x.permute(0, 2, 3, 4, 1)
         else:
             y_hat = x.permute(0, 1, 3, 4, 2)
-        return y_hat + old_x if self.skip else y_hat
+        return y_hat  # + old_x if self.skip else y_hat

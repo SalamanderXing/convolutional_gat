@@ -183,6 +183,7 @@ def train(
     dataset="kmni",
     test_first=False,
     reduce_lr_on_plateau=False,
+    n_heads_per_layer=(1,),
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     history = {"train_loss": []}
@@ -211,6 +212,7 @@ def train(
         n_vertices=n_vertices,
         attention_type=model_type,
         mapping_type=mapping_type,
+        n_heads_per_layer=n_heads_per_layer,
     ).to(device)
 
     print(f"Number of parameters: {get_number_parameters(model)}")
@@ -231,17 +233,9 @@ def train(
         )
 
     if test_first:
-        result = test(
-            model,
-            device,
-            train_loader,
-        )
+        result = test(model, device, train_loader,)
         history["train_loss"].append(result["val_loss"])
-        result = test(
-            model,
-            device,
-            test_loader,
-        )
+        result = test(model, device, test_loader,)
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
         print(json.dumps(result, indent=4))
