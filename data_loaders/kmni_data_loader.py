@@ -27,11 +27,7 @@ class DataLoader:
         with open(os.path.join(folder, "../metadata.json")) as f:
             metadata = json.load(f)
         self.data_folder = folder
-<<<<<<< HEAD
-        self.normalizing_max = 248
-=======
         self.normalizing_max = metadata['max']
->>>>>>> ba08d671a0d21043930f05f8c0a610184721c9a6
         self.merge_nodes = merge_nodes
         self.crop = crop
         self.device = device
