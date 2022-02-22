@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "unet"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_plus_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"
-EPOCHS = 10
+EPOCHS = 30
 TRAIN_BATCH_SIZE = 32
 TEST_BATCH_SIZE = 64
 LEARNING_RATE = 0.001

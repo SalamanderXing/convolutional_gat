@@ -131,9 +131,10 @@ def train_single_epoch(
             # N(batch size), H,W(feature number) = 256,256, T(time steps) = 4, V(vertices, # of cities) = 5
             optimizer.zero_grad()
             y_hat = model(x)  # Implicitly calls the model's forward function
-            loss = criterion(y_hat, y) - 0.0005 * (
-                t.sum(y_hat) / y_hat.numel()
-            )
+            loss = criterion(y_hat, y)
+            # - 0.0005 * (
+            #    t.sum(y_hat) / y_hat.numel()
+            # )
             loss.backward()  # Update the gradients
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
@@ -182,6 +183,7 @@ def train(
     dataset="kmni",
     test_first=False,
     reduce_lr_on_plateau=False,
+    n_heads_per_layer=(1,),
 ):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     history = {"train_loss": []}
@@ -210,6 +212,7 @@ def train(
         n_vertices=n_vertices,
         attention_type=model_type,
         mapping_type=mapping_type,
+        n_heads_per_layer=n_heads_per_layer,
     ).to(device)
 
     print(f"Number of parameters: {get_number_parameters(model)}")
@@ -230,17 +233,9 @@ def train(
         )
 
     if test_first:
-        result = test(
-            model,
-            device,
-            train_loader,
-        )
+        result = test(model, device, train_loader,)
         history["train_loss"].append(result["val_loss"])
-        result = test(
-            model,
-            device,
-            test_loader,
-        )
+        result = test(model, device, test_loader,)
         print(f"Test loss (without any training): {result['val_loss']:.6f}")
         update_history(history, result)
         print(json.dumps(result, indent=4))

@@ -18,7 +18,7 @@ class Model(nn.Module):
         attention_type: str = "multi_istream",
         time_steps: int = 4,
         mapping_type="linear",
-        n_heads_per_layer=(3, 3),
+        n_heads_per_layer=(1,1,1,1,1,1,1,1,1,1),
     ):
 
         super().__init__()
@@ -41,7 +41,7 @@ class Model(nn.Module):
         )
 
     def forward(self, x):
-        return t.sigmoid(self.layers(x))
+        return self.layers(x)
 
 
 class GATMultiHead3D(nn.Module):
