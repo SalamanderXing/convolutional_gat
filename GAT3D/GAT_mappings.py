@@ -8,6 +8,35 @@ from torch.autograd import Variable
 import ipdb
 
 from .smaat_unet.SmaAt_UNet import SmaAt_UNet
+from .autoencoder import Encoder, Decoder
+
+
+class EncoderMapping(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = Encoder()
+
+    def forward(self, x: t.Tensor):
+        acc = []
+        for i in range(x.shape[-1]):
+            x_piece = x[:, :, :, :, i]
+            enc = self.encoder(x_piece)
+            acc.append(enc)
+        result = t.stack(acc, dim=4)
+
+        result = result[:, :252, :, :, :].view(x.shape[0], 6, 12, 14, 4)
+        ipdb.set_trace()
+        return result
+
+
+class DecoderMapping(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.decoder = Decoder()
+
+    def forward(self, x: t.Tensor):
+        ipdb.set_trace
+        return x
 
 
 class LinearMapping(nn.Module):
@@ -22,7 +51,29 @@ class LinearMapping(nn.Module):
 
 
 class SmaAt_UNetMapping(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(
+        self,
+        mapping_type: str = "conv",
+    ):
+        super().__init__()
+        self.mapping_type = mapping_type
+        self.unet = SmaAt_UNet(n_channels=4, n_classes=4)
+
+    def forward(self, x):
+        # ipdb.set_trace()
+        old_x = x
+        acc = []
+        x = x.permute(1, 0, 4, 2, 3)
+        for i in range(x.shape[0]):  # should be vertex dim
+            acc.append(self.unet(x[i, :, :, :, :]))
+        result = t.stack(acc)
+        result = result.permute(1, 0, 3, 4, 2)
+        return result + old_x
+
+
+"""
+class SmaAt_UNetMapping(nn.Module):
+    def __init__(self, in_features=4, out_features=4):
         super().__init__()
         self.conv_net = SmaAt_UNet(
             n_channels=in_features, n_classes=out_features
@@ -38,6 +89,7 @@ class SmaAt_UNetMapping(nn.Module):
             whs.append(whi)
         Wh = t.stack(whs).permute(1, 0, 3, 4, 2)
         return Wh
+"""
 
 
 class ConvBlock2D(nn.Module):
@@ -104,7 +156,7 @@ class ConvBlock3D(nn.Module):
                 y_hat = y_hat.clone() + x_resized
                 y_hat = F.relu(y_hat)
             else:
-                y_hat = y_hat.clone() + x[:, :y_hat.shape[1]]
+                y_hat = y_hat.clone() + x[:, : y_hat.shape[1]]
                 y_hat = F.relu(y_hat)
 
         return y_hat
@@ -122,8 +174,10 @@ class ConvMapping(nn.Module):
             # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
             ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
             ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
             ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.10, True),
             ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),

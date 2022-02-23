@@ -4,7 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from .unet import UNet
-from .GAT_mappings import LinearMapping, SmaAt_UNetMapping, ConvMapping
+from .GAT_mappings import (
+    LinearMapping,
+    SmaAt_UNetMapping,
+    ConvMapping,
+    EncoderMapping,
+    DecoderMapping,
+)
+from ..unet_model import UnetModel
 import ipdb
 
 
@@ -18,7 +25,7 @@ class Model(nn.Module):
         attention_type: str = "multi_istream",
         time_steps: int = 4,
         mapping_type="linear",
-        n_heads_per_layer=(1,1,1,1,1,1,1,1,1,1),
+        n_heads_per_layer=(1,),
     ):
 
         super().__init__()
@@ -39,6 +46,14 @@ class Model(nn.Module):
                 for i in range(len(n_heads_per_layer))
             ]
         )
+        """
+        self.unet = UnetModel(
+            image_width=-1,
+            image_height=-1,
+            n_vertices=-1,
+            attention_type="dummy",
+        )
+        """
 
     def forward(self, x):
         return self.layers(x)
@@ -308,7 +323,9 @@ class GatTemporal(nn.Module):
             mappingClass = ConvMapping
         else:
             raise TypeError(f"Mapping type not supported: {self.mapping_type}")
-        self.temporal_mapping = mappingClass("spatial")
+        # self.temporal_mapping = mappingClass("spatial")
+        self.temporal_mapping = EncoderMapping()
+        self.decoder = DecoderMapping()
 
     def temporal_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
         attention = compute_attention(
@@ -350,6 +367,7 @@ class GatTemporal(nn.Module):
         D_12 = t.sqrt(t.inverse(D))
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
         h_prime = self.temporal_forward(N, V, T, H, W, Wh, adj_mat_norm_d12)
+        # result = self.unet(h_prime)
         return h_prime
 
 

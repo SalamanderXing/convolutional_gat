@@ -22,7 +22,7 @@ class DataLoader:
         shuffle: bool = True,
         merge_nodes: bool = False,
         power: float = 1,
-        max_out: float = 0.01
+        max_out: float = 1  # 0.01
     ):
 
         self.power = t.tensor(power)
@@ -101,6 +101,7 @@ class DataLoader:
             split_segments = split_segments[
                 :, :, :, :, : self.crop, : self.crop
             ]
+        """
         if self.merge_nodes:
             split_segments = t.cat(
                 tuple(
@@ -115,6 +116,7 @@ class DataLoader:
                 ),
                 dim=4,
             )
+        """
         return split_segments
 
     def __next__(self) -> tuple[t.Tensor, t.Tensor]:
@@ -129,10 +131,10 @@ class DataLoader:
             if self.shuffle
             else t.arange(result.shape[1])
         )
-        if self.merge_nodes:
-            result = result.permute(0, 1, 2, 3, 4)
-        else:
-            result = result.permute(0, 1, 4, 5, 2, 3)
+        # if self.merge_nodes:
+        #    result = result.permute(0, 1, 2, 3, 4)
+        # else:
+        result = result.permute(0, 1, 4, 5, 2, 3)
         results = (
             result[0][rand_indices],
             result[1][rand_indices],
