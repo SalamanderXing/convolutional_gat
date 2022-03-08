@@ -88,7 +88,7 @@ def plot_freqs(
 
 
 def main():
-    unet_file_name = "path to unet dataset file"
+    unet_file_name = "/home/wt632036/data/precipitation/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_20.h5"
     out_dir = os.path.dirname(__file__)
     get_frequencies_unet_dataset(out_dir=out_dir, data_location=unet_file_name)
     # output of this already written
