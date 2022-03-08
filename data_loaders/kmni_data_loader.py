@@ -22,7 +22,7 @@ class DataLoader:
         shuffle: bool = True,
         merge_nodes: bool = False,
         power: float = 1,
-        max_out: float = 1  # 0.01
+        max_out: float = 0.01
     ):
 
         self.power = t.tensor(power)

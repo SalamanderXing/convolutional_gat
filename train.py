@@ -10,15 +10,15 @@ from .data_loaders.get_loaders import get_loaders
 from .GAT3D.GATMultistream import Model
 import matplotlib.pyplot as plt
 from .unet_model import UnetModel
-from .utils import (
-    get_metrics,
+from .utils.misc import (
     visualize_predictions,
     update_history,
-    denormalize,
     plot_history,
     model_classes,
     get_number_parameters,
 )
+from .utils.metrics import get_metrics
+from .utils.incremental_tuple import IncrementalTouple
 
 # from .utils import thresholded_mask_metrics, update_history
 
@@ -27,20 +27,12 @@ from .utils import (
 
 def test(model: nn.Module, device, loader, flag="val"):
     # binarize_thresh = t.mean(val_test_loader.normalizing_mean)
-    """
-    thresh_metrics = thresholded_mask_metrics(
-        threshold=binarize_thresh,
-        var=t.mean(val_test_loader.normalizing_var),
-        mean=t.mean(val_test_loader.normalizing_mean),
-    )
-    """
-    # val_test_loader.stats(model)
     model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
     with t.no_grad():  # Disables the autograd engine
         running_loss = t.tensor(0.0)
-        running_acc = t.tensor(0.0)
-        running_prec = t.tensor(0.0)
-        running_recall = t.tensor(0.0)
+        running_acc = IncrementalTouple()
+        running_prec = IncrementalTouple()
+        running_recall = IncrementalTouple()
         running_denorm_mse = t.tensor(0.0)
         total_length = 0
         # mean = val_test_loader.normalizing_mean
@@ -67,29 +59,19 @@ def test(model: nn.Module, device, loader, flag="val"):
                     threshold,  # second_min  # 0.04011
                 )
                 running_acc += acc
-                running_prec += prec if not prec.isnan() else 0
-                running_recall += rec if not rec.isnan() else 0
-
+                running_prec += prec
+                running_recall += rec
                 running_denorm_mse += (
                     t.sum(((y - y_hat) * loader.normalizing_max) ** 2)
                     / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
-                # running_acc += thresh_metrics.acc(y, y_hat).numpy()
-                """
-                running_prec += thresh_metrics.precision(
-                    y, y_hat
-                ).numpy() * len(x)
-                running_recall += thresh_metrics.recall(
-                    y, y_hat
-                ).numpy() * len(x)
-                """
 
     model.train()
     return {
         "val_loss": (running_loss / total_length).item(),
-        "val_acc": (running_acc / total_length).item(),
-        "val_prec": (running_prec / total_length).item(),
-        "val_rec": (running_recall / total_length).item(),
+        "val_acc": running_acc.item(),
+        "val_prec": running_prec.item(),
+        "val_rec": running_recall.item(),
         "val_denorm_mse": (running_denorm_mse / total_length).item(),
     }
 

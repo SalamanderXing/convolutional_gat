@@ -296,6 +296,9 @@ class GatTemporal(nn.Module):
         n_vertices: int,
         mapping_type="conv",
     ):
+
+        image_width = 12
+        image_height = 14
         super().__init__()
         self.attention_type = attention_type
         self.in_features = in_features
@@ -356,7 +359,8 @@ class GatTemporal(nn.Module):
             self.A = self.A.to(self.B.device)
 
         Wh = self.temporal_mapping(h)
-
+        W = Wh.shape[2]
+        H = Wh.shape[3]
         # Learnable Adjacency Matrix
         adj_mat = None
         adj_mat = self.B[:, :] + self.A[:, :]
@@ -368,6 +372,8 @@ class GatTemporal(nn.Module):
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
         h_prime = self.temporal_forward(N, V, T, H, W, Wh, adj_mat_norm_d12)
         # result = self.unet(h_prime)
+        h_prime = self.decoder(h_prime)
+        ipdb.set_trace()
         return h_prime
 
 
