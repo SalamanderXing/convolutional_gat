@@ -198,6 +198,7 @@ def train(
         downsample_size=downsample_size,
         merge_nodes=merge_nodes,
     )
+    # train_loader.stats()
     for x, y in val_loader:
         if not merge_nodes:
             _, image_width, image_height, steps, n_vertices = x.shape
@@ -229,7 +230,7 @@ def train(
         )
     else:
         scheduler = t.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=0, verbose=True, factor=0.5
+            optimizer, "min", patience=1, verbose=True, factor=0.5
         )
 
     if test_first:

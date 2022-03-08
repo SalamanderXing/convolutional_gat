@@ -43,6 +43,7 @@ def preprocess(
     out_dir: str,
     from_year: int = 2016,
     rain_threshold: float = 0.2,
+    split_areas: bool = True,
 ):
     out_dir = Path(out_dir) / "train"
 
@@ -87,18 +88,31 @@ def preprocess(
                     #    np.uint8
                     # )
                 )
-                raw_content = raw_content[
-                    243:590, 234:512
-                ]  # subsample the image
-
+                # raw_content = raw_content[
+                #    243:590, 234:512
+                # ]  # subsample the image
+                imgNoNan = raw_content[216:637, 158:579]
+                imgSize = 288
+                raw_content = imgNoNan[
+                    len(imgNoNan) // 2
+                    - imgSize // 2 : len(imgNoNan) // 2
+                    + imgSize // 2,
+                    len(imgNoNan[0]) // 2
+                    - imgSize // 2 : len(imgNoNan[0]) // 2
+                    + imgSize // 2,
+                ]
                 # List comprehension is faster most of the time
-                content_accumulator = tuple(
-                    raw_content[x : x + 80, y : y + 80] for x, y in coordinates
+                content = (
+                    t.stack(
+                        tuple(
+                            raw_content[x : x + 80, y : y + 80]
+                            for x, y in coordinates
+                        )
+                    )
+                    if split_areas
+                    else raw_content.unsqueeze(0)
                 )
-                content = t.stack(
-                    content_accumulator
-                )  # merge them into one tensor
-                content[content == 65535] = 0  # set NaNs to zero
+                content[content == t.max(content)] = 0  # set NaNs to zero
                 max_val = max(t.max(content).item(), max_val)
                 min_val = min(t.min(content).item(), min_val)
 
@@ -158,12 +172,17 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out-dir", type=str)
     parser.add_argument("-r", "--rain-threshold", type=float, default=0.5)
     parser.add_argument("-y", "--from-year", type=int, default=2016)
+    parser.add_argument("--split-areas", type=bool, default=False)
     args = parser.parse_args()
     assert args.rain_threshold <= 1, "--rain-threshold must be <= 1"
     print(json.dumps(args.__dict__, indent=4))
     if args.action == "preprocess":
         preprocess(
-            args.in_dir, args.out_dir, args.from_year, args.rain_threshold
+            args.in_dir,
+            args.out_dir,
+            args.from_year,
+            args.rain_threshold,
+            False,
         )
         test_split(args.out_dir)
     elif args.action == "test-split":
