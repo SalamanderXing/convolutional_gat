@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "temporal"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
+PREPROCESSED_FOLDER = "convolutional_gat/preprocessed"
 MAPPING_TYPE = "conv"
 DATASET = "kmni"
 EPOCHS = 30
@@ -14,6 +14,6 @@ GAMMA = 0.95
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (20, 20)
+DOWNSAMPLE_SIZE = (80, 80)
 REDUCE_LR_ON_PLATEAU = True
-N_HEADS_PER_LAYER = (1,)
+N_HEADS_PER_LAYER = (3, 3)
