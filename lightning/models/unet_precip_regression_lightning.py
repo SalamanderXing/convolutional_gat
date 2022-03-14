@@ -1,18 +1,20 @@
 import argparse
-from models.unet_parts import *
-from models.unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
-from models.layers import CBAM
+from .unet_parts import *
+from .unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
+from .layers import CBAM
 import pytorch_lightning as pl
-from models.regression_lightning import Precip_regression_base
+from .regression_lightning import Precip_regression_base
+import ipdb
+
 
 class CGAT(Precip_regression_base):
-
     def __init__(self, hparams):
         super(CGAT, self).__init__(hparams=hparams)
         pass
 
     def forward(self, x):
         pass
+
 
 class UNet(Precip_regression_base):
     def __init__(self, hparams):
@@ -35,6 +37,7 @@ class UNet(Precip_regression_base):
         self.outc = OutConv(64, self.n_classes)
 
     def forward(self, x):
+        print(f"heyyyy {x.shape=}")
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -101,16 +104,37 @@ class UNetDS(Precip_regression_base):
         self.bilinear = hparams.bilinear
         kernels_per_layer = hparams.kernels_per_layer
 
-        self.inc = DoubleConvDS(self.n_channels, 64, kernels_per_layer=kernels_per_layer)
+        self.inc = DoubleConvDS(
+            self.n_channels, 64, kernels_per_layer=kernels_per_layer
+        )
         self.down1 = DownDS(64, 128, kernels_per_layer=kernels_per_layer)
         self.down2 = DownDS(128, 256, kernels_per_layer=kernels_per_layer)
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
-        self.up1 = UpDS(1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up2 = UpDS(512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up3 = UpDS(256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
+        self.down4 = DownDS(
+            512, 1024 // factor, kernels_per_layer=kernels_per_layer
+        )
+        self.up1 = UpDS(
+            1024,
+            512 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up2 = UpDS(
+            512,
+            256 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up3 = UpDS(
+            256,
+            128 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up4 = UpDS(
+            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
+        )
 
         self.outc = OutConv(64, self.n_classes)
 
@@ -137,7 +161,9 @@ class UNetDS_Attention(Precip_regression_base):
         reduction_ratio = hparams.reduction_ratio
         kernels_per_layer = hparams.kernels_per_layer
 
-        self.inc = DoubleConvDS(self.n_channels, 64, kernels_per_layer=kernels_per_layer)
+        self.inc = DoubleConvDS(
+            self.n_channels, 64, kernels_per_layer=kernels_per_layer
+        )
         self.cbam1 = CBAM(64, reduction_ratio=reduction_ratio)
         self.down1 = DownDS(64, 128, kernels_per_layer=kernels_per_layer)
         self.cbam2 = CBAM(128, reduction_ratio=reduction_ratio)
@@ -146,12 +172,31 @@ class UNetDS_Attention(Precip_regression_base):
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         self.cbam4 = CBAM(512, reduction_ratio=reduction_ratio)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
+        self.down4 = DownDS(
+            512, 1024 // factor, kernels_per_layer=kernels_per_layer
+        )
         self.cbam5 = CBAM(1024 // factor, reduction_ratio=reduction_ratio)
-        self.up1 = UpDS(1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up2 = UpDS(512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up3 = UpDS(256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
+        self.up1 = UpDS(
+            1024,
+            512 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up2 = UpDS(
+            512,
+            256 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up3 = UpDS(
+            256,
+            128 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up4 = UpDS(
+            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
+        )
 
         self.outc = OutConv(64, self.n_classes)
 
@@ -183,7 +228,9 @@ class UNetDS_Attention_4CBAMs(Precip_regression_base):
         reduction_ratio = hparams.reduction_ratio
         kernels_per_layer = hparams.kernels_per_layer
 
-        self.inc = DoubleConvDS(self.n_channels, 64, kernels_per_layer=kernels_per_layer)
+        self.inc = DoubleConvDS(
+            self.n_channels, 64, kernels_per_layer=kernels_per_layer
+        )
         self.cbam1 = CBAM(64, reduction_ratio=reduction_ratio)
         self.down1 = DownDS(64, 128, kernels_per_layer=kernels_per_layer)
         self.cbam2 = CBAM(128, reduction_ratio=reduction_ratio)
@@ -192,15 +239,35 @@ class UNetDS_Attention_4CBAMs(Precip_regression_base):
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         self.cbam4 = CBAM(512, reduction_ratio=reduction_ratio)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
-        self.up1 = UpDS(1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up2 = UpDS(512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up3 = UpDS(256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer)
-        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
+        self.down4 = DownDS(
+            512, 1024 // factor, kernels_per_layer=kernels_per_layer
+        )
+        self.up1 = UpDS(
+            1024,
+            512 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up2 = UpDS(
+            512,
+            256 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up3 = UpDS(
+            256,
+            128 // factor,
+            self.bilinear,
+            kernels_per_layer=kernels_per_layer,
+        )
+        self.up4 = UpDS(
+            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
+        )
 
         self.outc = OutConv(64, self.n_classes)
 
     def forward(self, x):
+        print(f"heyyyy {x.shape=}")
         x1 = self.inc(x)
         x1Att = self.cbam1(x1)
         x2 = self.down1(x1)
@@ -224,19 +291,24 @@ if __name__ == "__main__":
     parser = Precip_regression_base.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
 
-    parser.add_argument('--dataset_folder',
-                        default='../data/precipitation/RAD_NL25_RAC_5min_train_test_2016-2019.h5', type=str)
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--learning_rate', type=float, default=0.001)
-    parser.add_argument('--epochs', type=int, default=150)
+    parser.add_argument(
+        "--dataset_folder",
+        default="../data/precipitation/RAD_NL25_RAC_5min_train_test_2016-2019.h5",
+        type=str,
+    )
+    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--learning_rate", type=float, default=0.001)
+    parser.add_argument("--epochs", type=int, default=150)
 
     args = parser.parse_args()
 
     net = UNetDS_Attention(hparams=args)
 
-    trainer = pl.Trainer(gpus=1,
-                         fast_dev_run=True,
-                         weights_summary=None,
-                         default_save_path="../lightning/precip",
-                         max_epochs=args.epochs)
+    trainer = pl.Trainer(
+        gpus=1,
+        fast_dev_run=True,
+        weights_summary=None,
+        default_save_path="../lightning/precip",
+        max_epochs=args.epochs,
+    )
     trainer.fit(net)
