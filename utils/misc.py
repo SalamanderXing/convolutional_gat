@@ -4,7 +4,6 @@ import torch as t
 import ipdb
 import enum
 import matplotlib.pyplot as plt
-import climage
 from ..unet_model import UnetModel
 from ..GAT3D.GATMultistream import Model as GatModel
 from ..data_loaders.get_loaders import get_loaders
@@ -105,7 +104,7 @@ def visualize_predictions(
 
 
 def plot_history(
-    history: dict[str, list[float]],
+    history: dict,
     title: str = "Training History",
     save=False,
     filename="history",
@@ -126,7 +125,7 @@ def plot_history(
     plt.close()
 
 
-def update_history(history: dict[str, list[float]], data: dict[str, float]):
+def update_history(history: dict, data: dict):
     for key, val in data.items():
         if key not in history:
             history[key] = []

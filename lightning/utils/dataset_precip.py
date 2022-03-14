@@ -117,13 +117,12 @@ class precipitation_maps_oversampled_h5(Dataset):
         # target_img = imgs[-1] # Modified
         target_img = imgs[self.num_input :]
 
-        input_img = self.make_graph_from_image_sequence(input_img)[
+        input_img = t.from_numpy(self.make_graph_from_image_sequence(input_img)[
             :, :4
-        ].permute(0, 2, 3, 1)
-        target_img = self.make_graph_from_image_sequence(target_img)[
+        ]).permute(2, 3, 1, 0)
+        target_img = t.from_numpy(self.make_graph_from_image_sequence(target_img)[
             :, :4
-        ].permute(0, 2, 3, 1)
-
+        ]).permute(2, 3, 1, 0)
         # print(f"{input_img.shape} {target_img.shape}")
 
         return input_img, target_img

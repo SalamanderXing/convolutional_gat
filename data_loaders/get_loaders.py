@@ -11,7 +11,7 @@ def get_loaders(
     device,
     *,
     dataset: str = "kmni",
-    downsample_size: tuple[int, int] = (256, 256),
+    downsample_size: tuple = (256, 256),
     merge_nodes: bool = False,
     shuffle=True
 ):

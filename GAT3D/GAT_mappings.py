@@ -27,7 +27,6 @@ class EncoderMapping(nn.Module):
             acc.append(t.stack(row, dim=1))
         result = t.stack(acc, dim=-1)
         result = result.view(x.shape[0], 6, 16, 16, 4)
-        ipdb.set_trace()
         return result
 
 
@@ -43,7 +42,6 @@ class DecoderMapping(nn.Module):
             row = []
             for j in range(x.shape[1]):
                 x_piece = x[:, j, :, :, i].unsqueeze(1)
-                ipdb.set_trace()
                 enc = self.decoder(x_piece).squeeze()
                 row.append(enc)
             acc.append(t.stack(row, dim=1))
@@ -151,7 +149,7 @@ class ConvBlock3D(nn.Module):
             chin,
             chout,
             (first_kernel_dim, kernel_size, kernel_size),
-            padding="same",
+            padding=(first_kernel_dim//2, kernel_size//2, kernel_size//2),
         )
         self.expansion = chout / chin
         self.bn = nn.BatchNorm3d(chin)
@@ -161,6 +159,8 @@ class ConvBlock3D(nn.Module):
 
     def forward(self, x):
         # y_hat = self.bn(x)
+        print(f"heyy {x=}")
+        ipdb.set_trace()
         y_hat = self.do(self.conv(x))
         if self.nonlinear:
             y_hat = F.relu(y_hat)

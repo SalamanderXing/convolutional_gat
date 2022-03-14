@@ -7,7 +7,7 @@ import ipdb
 from .train import train
 
 
-def generate_experiment(argv: list[str]):
+def generate_experiment(argv: list):
 
     current_dir = str(pathlib.Path(__file__).parent.resolve())
     exp_path = current_dir + "/experiments/" + argv

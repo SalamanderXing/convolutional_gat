@@ -4,6 +4,7 @@ from pytorch_lightning.callbacks import (
     LearningRateLogger,
     EarlyStopping,
 )
+from .models.gat_lightning import GATLightning 
 from pytorch_lightning import loggers
 import argparse
 from .models import unet_precip_regression_lightning as unet_regr
@@ -35,6 +36,7 @@ def get_batch_size(hparams):
 
 
 def train_regression(hparams):
+    """
     if hparams.model == "UNetDS_Attention":
         net = unet_regr.UNetDS_Attention(hparams=hparams)
     elif hparams.model == "UNet_Attention":
@@ -45,7 +47,8 @@ def train_regression(hparams):
         net = unet_regr.CGAT(hparams=hparams)
     else:
         raise NotImplementedError(f"Model '{hparams.model}' not implemented")
-
+    """
+    net = GATLightning(hparams)
     # torchsummary.summary(net, (12, 288, 288), device="cpu")
     # return
     default_save_path = "lightning/precip_regression"
@@ -98,7 +101,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--dataset_folder",
-        default="/mnt/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
+        default="convolutional_gat/data/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
         type=str,
     )
     parser.add_argument("--batch_size", type=int, default=6)

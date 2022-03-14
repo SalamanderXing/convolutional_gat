@@ -109,6 +109,92 @@ class UNet_base(pl.LightningModule):
             "progress_bar": {"test_loss": avg_loss},
         }
 
+class GAT3DLithning(UNet_base):
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parent_parser = UNet_base.add_model_specific_args(parent_parser)
+        parser = argparse.ArgumentParser(
+            parents=[parent_parser], add_help=False
+        )
+        parser.add_argument("--num_input_images", type=int, default=12)
+        parser.add_argument("--num_output_images", type=int, default=6)
+        parser.add_argument("--valid_size", type=float, default=0.1)
+        parser.add_argument(
+            "--use_oversampled_dataset", type=bool, default=True
+        )
+        parser.n_channels = parser.parse_args().num_input_images
+        parser.n_classes = 1
+        return parser
+    def prepare_data(self):
+        # train_transform = transforms.Compose([
+        #     transforms.RandomHorizontalFlip()]
+        # )
+        train_transform = None
+        valid_transform = None
+        if self.hparams.use_oversampled_dataset:
+            self.train_dataset = (
+                dataset_precip.precipitation_maps_oversampled_h5(
+                    in_file=self.hparams.dataset_folder,
+                    num_input_images=self.hparams.num_input_images,
+                    num_output_images=self.hparams.num_output_images,
+                    train=True,
+                    transform=train_transform,
+                )
+            )
+            self.valid_dataset = (
+                dataset_precip.precipitation_maps_oversampled_h5(
+                    in_file=self.hparams.dataset_folder,
+                    num_input_images=self.hparams.num_input_images,
+                    num_output_images=self.hparams.num_output_images,
+                    train=True,
+                    transform=valid_transform,
+                )
+            )
+        else:
+            self.train_dataset = dataset_precip.precipitation_maps_h5(
+                in_file=self.hparams.dataset_folder,
+                num_input_images=self.hparams.num_input_images,
+                num_output_images=self.hparams.num_output_images,
+                train=True,
+                transform=train_transform,
+            )
+            self.valid_dataset = dataset_precip.precipitation_maps_h5(
+                in_file=self.hparams.dataset_folder,
+                num_input_images=self.hparams.num_input_images,
+                num_output_images=self.hparams.num_output_images,
+                train=True,
+                transform=valid_transform,
+            )
+        num_train = len(self.train_dataset)
+        indices = list(range(num_train))
+        split = int(np.floor(self.hparams.valid_size * num_train))
+
+        np.random.shuffle(indices)
+
+        train_idx, valid_idx = indices[split:], indices[:split]
+        self.train_sampler = SubsetRandomSampler(train_idx)
+        self.valid_sampler = SubsetRandomSampler(valid_idx)
+
+    def train_dataloader(self):
+        train_loader = torch.utils.data.DataLoader(
+            self.train_dataset,
+            batch_size=self.hparams.batch_size,
+            sampler=self.train_sampler,
+            num_workers=10,
+            pin_memory=True,
+        )
+        return train_loader
+
+    def val_dataloader(self):
+        valid_loader = torch.utils.data.DataLoader(
+            self.valid_dataset,
+            batch_size=self.hparams.batch_size,
+            sampler=self.valid_sampler,
+            num_workers=10,
+            pin_memory=True,
+        )
+        return valid_loader
+
 
 class Precip_regression_base(UNet_base):
     @staticmethod

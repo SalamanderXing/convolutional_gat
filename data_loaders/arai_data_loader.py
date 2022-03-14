@@ -23,7 +23,7 @@ class DataLoader:
         time_steps: int = 4,
         norm_max=None,
         norm_min=None,
-        downsample_size: tuple[int, int] = (256, 256,),  # by default, don't downsample
+        downsample_size: tuple = (256, 256,),  # by default, don't downsample
     ):
         self.total_length = total_length
         self.n_regions = n_regions
@@ -54,7 +54,7 @@ class DataLoader:
         tot = self.total_length - (self.time_steps - 1) * (len(self.files) + 1)
         return tot // self.__batch_size
 
-    def __batchify(self, data: t.Tensor) -> tuple[t.Tensor, t.Tensor]:
+    def __batchify(self, data: t.Tensor) -> tuple:
         result = (t.tensor([]), t.tensor([]))
         """
         shifted = t.stack(
@@ -95,7 +95,7 @@ class DataLoader:
     def __iter__(self):
         return self
 
-    def __next__(self) -> tuple[t.Tensor, t.Tensor]:
+    def __next__(self) -> tuple:
         if self.should_stop_iteration:
             # print(f"Number of files read: {self.file_index} out of {len(self.files)}")
             raise StopIteration
@@ -194,7 +194,7 @@ def get_loaders(
     preprocessed_folder: str,
     device,
     *,
-    downsample_size: tuple[int, int] = (256, 256),
+    downsample_size = (256, 256),
 ):
     with open(os.path.join(preprocessed_folder, "metadata.json")) as f:
         metadata = json.load(f)

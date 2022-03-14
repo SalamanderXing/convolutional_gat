@@ -297,7 +297,7 @@ class GatTemporal(nn.Module):
         mapping_type="conv",
     ):
 
-        image_width = 12
+        image_width = 16
         image_height = 14
         super().__init__()
         self.attention_type = attention_type
@@ -326,9 +326,9 @@ class GatTemporal(nn.Module):
             mappingClass = ConvMapping
         else:
             raise TypeError(f"Mapping type not supported: {self.mapping_type}")
-        # self.temporal_mapping = mappingClass("spatial")
-        self.temporal_mapping = EncoderMapping()
-        self.decoder = DecoderMapping()
+        self.temporal_mapping = mappingClass("spatial")
+        #self.temporal_mapping = EncoderMapping()
+        #self.decoder = DecoderMapping()
 
     def temporal_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
         attention = compute_attention(
@@ -349,6 +349,7 @@ class GatTemporal(nn.Module):
         return F.elu(h_prime)
 
     def forward(self, h):
+        ipdb.set_trace()
         if len(h.size()) == 5:
             N, H, W, T, V = h.size()
             h = h.permute(0, 4, 1, 2, 3)
@@ -372,8 +373,8 @@ class GatTemporal(nn.Module):
         adj_mat_norm_d12 = t.matmul(t.matmul(D_12, adj_mat), D_12)
         h_prime = self.temporal_forward(N, V, T, H, W, Wh, adj_mat_norm_d12)
         # result = self.unet(h_prime)
-        h_prime = self.decoder(h_prime)
-        ipdb.set_trace()
+        # h_prime = self.decoder(h_prime)
+        # ipdb.set_trace()
         return h_prime
 
 

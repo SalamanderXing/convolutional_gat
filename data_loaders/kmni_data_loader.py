@@ -119,7 +119,7 @@ class DataLoader:
         """
         return split_segments
 
-    def __next__(self) -> tuple[t.Tensor, t.Tensor]:
+    def __next__(self) -> tuple:
         if self.remainder.shape[1] == 0:
             data = self.__read_next_file()
         else:
