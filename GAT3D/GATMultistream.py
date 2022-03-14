@@ -349,7 +349,6 @@ class GatTemporal(nn.Module):
         return F.elu(h_prime)
 
     def forward(self, h):
-        ipdb.set_trace()
         if len(h.size()) == 5:
             N, H, W, T, V = h.size()
             h = h.permute(0, 4, 1, 2, 3)

@@ -159,8 +159,6 @@ class ConvBlock3D(nn.Module):
 
     def forward(self, x):
         # y_hat = self.bn(x)
-        print(f"heyy {x=}")
-        ipdb.set_trace()
         y_hat = self.do(self.conv(x))
         if self.nonlinear:
             y_hat = F.relu(y_hat)
