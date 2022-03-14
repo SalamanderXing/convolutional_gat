@@ -149,7 +149,7 @@ class ConvBlock3D(nn.Module):
             chin,
             chout,
             (first_kernel_dim, kernel_size, kernel_size),
-            padding=(first_kernel_dim//2, kernel_size//2, kernel_size//2),
+            padding='same'
         )
         self.expansion = chout / chin
         self.bn = nn.BatchNorm3d(chin)

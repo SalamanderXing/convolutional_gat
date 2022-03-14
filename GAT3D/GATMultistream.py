@@ -97,7 +97,6 @@ class GATMultiHead3D(nn.Module):
     def forward(self, x):
         # N, H, W, T, V = x.size()
         # x = torch.cat(tuple(att(x) for att in self.attentions), dim=2)
-        # ipdb.set_trace()
         # print("inputtttttt", x.size())
         x = t.mean(t.stack([att(x) for att in self.attentions]), dim=0)
         # print("outputtttttt", x.size())
@@ -250,12 +249,10 @@ class GatSpatial(nn.Module):
             h_prime.permute(1, 3, 4, 2, 0).contiguous()
             # .view(N, H, W * self.out_features, V) was this useful??
         )
-        # ipdb.set_trace()
         h_prime = t.matmul(h_prime, adj_mat_norm_d12).permute(0, 1, 3, 2, 4)
         # .view( # this was the bug!
         #    N, H, W, self.out_features, V
         # )
-        # ipdb.set_trace()
         return F.elu(h_prime)
 
     def forward(self, h):
@@ -297,8 +294,8 @@ class GatTemporal(nn.Module):
         mapping_type="conv",
     ):
 
-        image_width = 16
-        image_height = 14
+        # image_width = 16
+        # image_height = 14
         super().__init__()
         self.attention_type = attention_type
         self.in_features = in_features
@@ -327,8 +324,8 @@ class GatTemporal(nn.Module):
         else:
             raise TypeError(f"Mapping type not supported: {self.mapping_type}")
         self.temporal_mapping = mappingClass("spatial")
-        #self.temporal_mapping = EncoderMapping()
-        #self.decoder = DecoderMapping()
+        # self.temporal_mapping = EncoderMapping()
+        # self.decoder = DecoderMapping()
 
     def temporal_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
         attention = compute_attention(
@@ -357,7 +354,6 @@ class GatTemporal(nn.Module):
 
         if self.A.device != self.B.device:
             self.A = self.A.to(self.B.device)
-
         Wh = self.temporal_mapping(h)
         W = Wh.shape[2]
         H = Wh.shape[3]
@@ -373,7 +369,6 @@ class GatTemporal(nn.Module):
         h_prime = self.temporal_forward(N, V, T, H, W, Wh, adj_mat_norm_d12)
         # result = self.unet(h_prime)
         # h_prime = self.decoder(h_prime)
-        # ipdb.set_trace()
         return h_prime
 
 
@@ -473,12 +468,10 @@ class BaseGat(nn.Module):
             h_prime.permute(1, 3, 4, 2, 0).contiguous()
             # .view(N, H, W * self.out_features, V) was this useful??
         )
-        # ipdb.set_trace()
         h_prime = t.matmul(h_prime, adj_mat_norm_d12).permute(0, 1, 3, 2, 4)
         # .view( # this was the bug!
         #    N, H, W, self.out_features, V
         # )
-        # ipdb.set_trace()
         return F.elu(h_prime)
 
     def temporal_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
