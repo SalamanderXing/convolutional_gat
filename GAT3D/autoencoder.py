@@ -64,7 +64,7 @@ class EncoderModule(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels=6, use_inception=True, repeat_per_module=1):
+    def __init__(self, in_channels=1, use_inception=True, repeat_per_module=1):
         super().__init__()
         # stages
         self.upch1 = nn.Conv2d(in_channels, 32, kernel_size=1)
@@ -89,8 +89,7 @@ class Encoder(nn.Module):
         out = self.stage2(self.upch2(out))
         out = self.stage3(self.upch3(out))
         out = self.stage4(self.upch4(out))
-        # ipdb.set_trace()
-        # out = F.avg_pool2d(out, 2)  # Global Average pooling
+        out = F.avg_pool2d(out, 2)  # Global Average pooling
         return out  # out.view(-1, 256)
 
     ## Decoder
@@ -183,7 +182,7 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x):
-        out = F.upsample(x.view(-1, 256, 1, 1), scale_factor=8)
+        out = F.upsample(x.reshape(x.shape[0], -1, 1, 1), scale_factor=8)
         out = self.downch1(self.stage1(out))
         out = self.downch2(self.stage2(out))
         out = self.downch3(self.stage3(out))

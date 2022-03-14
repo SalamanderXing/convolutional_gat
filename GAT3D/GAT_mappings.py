@@ -19,12 +19,14 @@ class EncoderMapping(nn.Module):
     def forward(self, x: t.Tensor):
         acc = []
         for i in range(x.shape[-1]):
-            x_piece = x[:, :, :, :, i]
-            enc = self.encoder(x_piece)
-            acc.append(enc)
-        result = t.stack(acc, dim=4)
-
-        result = result[:, :252, :, :, :].view(x.shape[0], 6, 12, 14, 4)
+            row = []
+            for j in range(x.shape[1]):
+                x_piece = x[:, j, :, :, i].unsqueeze(1)
+                enc = self.encoder(x_piece).squeeze()
+                row.append(enc)
+            acc.append(t.stack(row, dim=1))
+        result = t.stack(acc, dim=-1)
+        result = result.view(x.shape[0], 6, 16, 16, 4)
         ipdb.set_trace()
         return result
 
@@ -35,8 +37,20 @@ class DecoderMapping(nn.Module):
         self.decoder = Decoder()
 
     def forward(self, x: t.Tensor):
-        ipdb.set_trace
-        return x
+        x = x.permute(0, 4, 1, 2, 3)
+        acc = []
+        for i in range(x.shape[-1]):
+            row = []
+            for j in range(x.shape[1]):
+                x_piece = x[:, j, :, :, i].unsqueeze(1)
+                ipdb.set_trace()
+                enc = self.decoder(x_piece).squeeze()
+                row.append(enc)
+            acc.append(t.stack(row, dim=1))
+        result = t.stack(acc, dim=-1)
+        result = result.view(x.shape[0], 6, 16, 16, 4)
+        # Eresult = result[:, :252, :, :, :].view(x.shape[0], 6, 12, 14, 4)
+        return result
 
 
 class LinearMapping(nn.Module):
