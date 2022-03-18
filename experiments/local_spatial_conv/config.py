@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "spatial"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_plus_preprocessed"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
 MAPPING_TYPE = "conv"
 DATASET = "kmni"
 EPOCHS = 20

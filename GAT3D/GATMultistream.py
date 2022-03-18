@@ -109,7 +109,7 @@ def temporal_batch_prepare_attentional_mechanism_input(Wh):
     Wh_repeated_alternating = Wh.repeat(1, V, 1, 1, 1)
     all_combinations_matrix = t.cat(
         [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=-2
-    )
+    ).permute(0, 1, 4, 2, 3) # Reshape fix
     return all_combinations_matrix.view(B, V, V, T, 2 * H * W)
 
 

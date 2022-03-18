@@ -4,7 +4,7 @@ from pytorch_lightning.callbacks import (
     LearningRateLogger,
     EarlyStopping,
 )
-from .models.gat_lightning import GATLightning 
+from .models.gat_lightning import GATLightning
 from pytorch_lightning import loggers
 import argparse
 from .models import unet_precip_regression_lightning as unet_regr
@@ -51,7 +51,11 @@ def train_regression(hparams):
     net = GATLightning(hparams)
     # torchsummary.summary(net, (12, 288, 288), device="cpu")
     # return
-    default_save_path = "lightning/precip_regression"
+    default_save_path = os.path.join(
+        os.path.dirname(__file__), "../experiments/local_temporal_conv",
+    )
+
+    # default_save_path = "convolutional_gat/experiments"
 
     checkpoint_callback = ModelCheckpoint(
         filepath=os.getcwd()
