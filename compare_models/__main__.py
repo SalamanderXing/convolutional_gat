@@ -7,7 +7,8 @@ from ..GAT3D.GATMultistream import Model
 from ..train import test
 import json
 import time
-from ..utils import get_number_parameters, model_classes
+from ..utils.misc import get_number_parameters, model_classes
+from ..unet_model import UnetModel
 import ipdb
 
 
@@ -15,9 +16,9 @@ def get_metrics(models, models_folders, preprocessed_folder, downsample_size):
     device = t.device("cuda" if t.cuda.is_available() else "cpu")
     results = {}
     for model_folder, model in zip(models_folders, models):
-        train_loader, test_loader, _ = get_loaders(
+        _, test_loader, _ = get_loaders(
             train_batch_size=2,
-            test_batch_size=100,
+            test_batch_size=10,
             preprocessed_folder=preprocessed_folder,
             device=device,
             downsample_size=downsample_size,
@@ -34,19 +35,28 @@ def get_metrics(models, models_folders, preprocessed_folder, downsample_size):
     return results
 
 
-def plot(out_path, loader, models):
+def plot(folders, out_path, loader, models):
     _fig, ax = plt.subplots(nrows=len(folders) + 1, ncols=4)
+    for model, folder in zip(models, folders):
+        name = " ".join(folder.split("_")[1:])
+        print(f"Parameters {name}: {get_number_parameters(model)}")
+
+    names = [" ".join(f.split("_")[1:]) for f in folders]
     for x, y in loader:
         for k in range(len(x)):
             raininess = y[k][y[k] != 0].numel() / y[k].numel()
             if raininess >= 0.3:
-                preds = [model(x)[k] for model in models]
+                preds = [model(x)[k] for model, name in zip(models, names)]
+                # ipdb.set_trace()
                 to_plot = [y[k]] + preds
-                to_plot = [t.pow(tp, 1 / loader.power) for tp in to_plot]
+                # to_plot = [t.pow(tp, 1 / loader.power) for tp in to_plot]
                 for i, row in enumerate(ax):
                     for j, col in enumerate(row):
+                        cur_to_plot = to_plot[i].cpu().detach().numpy()
                         col.imshow(
-                            to_plot[i].cpu().detach().numpy()[:, :, j, 1]
+                            cur_to_plot[:, :, j, 1]
+                            # if i < 2 or (not "unet" in names[i - 1])
+                            # else cur_to_plot[j, :, :]
                         )
 
                 row_labels = ["y"] + [
@@ -59,7 +69,8 @@ def plot(out_path, loader, models):
                 for ax_, col in zip(ax[0, :], col_labels):
                     ax_.set_title(col)
 
-                plt.savefig(os.path.join(out_path, f"multi_model_plot.png"))
+                # plt.savefig(os.path.join(out_path, f"multi_model_plot.png"))
+                plt.show()
                 plt.close()
                 return
 
@@ -86,12 +97,11 @@ def compare_models(
     base_path: str,
     folders: list[str],
     out_path="",
-    downsample_size=(20, 20),
-    preprocessed_folder: str = "/mnt/kmni_dataset/20_plus_preprocessed",
+    downsample_size=(80, 80),
+    preprocessed_folder: str = "/mnt/kmni_dataset/20_latest",
     dataset="kmni",
-    plot_only=False,
+    plot_only=True,
 ):
-    plt.clf()
     with t.no_grad():
         device = t.device("cuda" if t.cuda.is_available() else "cpu")
         train_loader, test_loader, _ = get_loaders(
@@ -116,7 +126,15 @@ def compare_models(
                 open(os.path.join(data_folder, "config.py")).read(),
                 config,
             )
-            model_class = model_classes[config["MODEL_TYPE"]]
+            config = {
+                key: val for key, val in config.items() if key.upper() == key
+            }
+            print(json.dumps(config, indent=4, default=str))
+            model_class = (
+                model_classes[config["MODEL_TYPE"]]
+                # if not "unet" in config["MODEL_TYPE"]
+                # else UnetModel
+            )
             model = model_class(
                 image_width=image_width,
                 image_height=image_height,
@@ -138,10 +156,10 @@ def compare_models(
             print(json.dumps(results, indent=4))
             with open(os.path.join(out_path, "results.json"), "w") as f:
                 json.dump(results, f, indent=4)
-        plot(out_path, test_loader, models)
+        plot(folders, out_path, test_loader, models)
 
 
-if __name__ == "__main__":
+def main():
     base_folder = "convolutional_gat/experiments"
     folders = [
         "local_temporal_conv",
@@ -155,3 +173,7 @@ if __name__ == "__main__":
         out_path="convolutional_gat/compare_models/results",
         plot_only=False,
     )
+
+
+if __name__ == "__main__":
+    main()
