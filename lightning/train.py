@@ -1,12 +1,20 @@
 import pytorch_lightning as pl
+import ipdb
+
+
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
     LearningRateLogger,
     EarlyStopping,
 )
-from .models.gat_lightning import GATLightning
+from .models.gat_lightning import (
+    GAT3DLightning,
+    GAT2DLightning,
+    GAT1DLightning,
+)
 from pytorch_lightning import loggers
 import argparse
+import json
 from .models import unet_precip_regression_lightning as unet_regr
 
 # import torchsummary
@@ -36,7 +44,6 @@ def get_batch_size(hparams):
 
 
 def train_regression(hparams):
-    """
     if hparams.model == "UNetDS_Attention":
         net = unet_regr.UNetDS_Attention(hparams=hparams)
     elif hparams.model == "UNet_Attention":
@@ -45,22 +52,27 @@ def train_regression(hparams):
         net = unet_regr.UNet(hparams=hparams)
     elif hparams.model == "CGAT":
         net = unet_regr.CGAT(hparams=hparams)
+    elif hparams.model == "GAT3D":
+        net = GAT3DLightning(hparams)
+    elif hparams.model == "GAT3D-small":
+        net = GAT3DLightning(hparams)
+    elif hparams.model == "GAT2D":
+        net = GAT2DLightning(hparams)
+    elif hparams.model == "GAT1D":
+        net = GAT1DLightning(hparams)
+
     else:
         raise NotImplementedError(f"Model '{hparams.model}' not implemented")
-    """
-    net = GATLightning(hparams)
+
     # torchsummary.summary(net, (12, 288, 288), device="cpu")
     # return
-    default_save_path = os.path.join(
-        os.path.dirname(__file__), "../experiments/local_temporal_conv",
-    )
 
     # default_save_path = "convolutional_gat/experiments"
 
     checkpoint_callback = ModelCheckpoint(
         filepath=os.getcwd()
         + "/"
-        + default_save_path
+        + hparams.save_path
         + "/"
         + net.__class__.__name__
         + "/{epoch}-{val_loss:.6f}",
@@ -72,7 +84,7 @@ def train_regression(hparams):
     )
     lr_logger = LearningRateLogger()
     tb_logger = loggers.TensorBoardLogger(
-        save_dir=default_save_path, name=net.__class__.__name__
+        save_dir=hparams.save_path, name=net.__class__.__name__
     )
 
     earlystopping_callback = EarlyStopping(
@@ -85,8 +97,8 @@ def train_regression(hparams):
         gpus=hparams.gpus,
         weights_summary=None,
         max_epochs=hparams.epochs,
-        default_save_path=default_save_path,
-        checkpoint_callback=checkpoint_callback,
+        default_save_path=hparams.save_path,
+        # checkpoint_callback=checkpoint_callback,
         early_stop_callback=earlystopping_callback,
         logger=tb_logger,
         callbacks=[lr_logger],
@@ -108,6 +120,9 @@ if __name__ == "__main__":
         default="convolutional_gat/data/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
         type=str,
     )
+    parser.add_argument(
+        "--experiment-save-path", type=str, default="local_temporal_conv"
+    )
     parser.add_argument("--batch_size", type=int, default=6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--epochs", type=int, default=200)
@@ -115,17 +130,32 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.fast_dev_run = False  # True
-
-    args.n_channels = 12
+    models = {
+        "UNetDS_Attention": "local_unet",
+        "GAT3D": "local_temporal_conv",
+        "GAT3D-small": "local_temporal_conv_small",
+        "GAT2D": "local_baseline2d",
+        "GAT1D": "local_baseline",
+    }
+    args.n_channels = 4
     args.gpus = 1
-    args.model = "UNetDS_Attention"
+    args.model = list(models.keys())[3]  #
+
+    args.subsample_size = 80
+    if args.model in ("GAT3D-small", "GAT1D", "GAT2D"):
+        args.subsample_size = 40
+    args.batch_size = 6  # if args.model == "GAT3D" else 2
     args.lr_patience = 4
     args.es_patience = 30
     # args.val_check_interval = 0.25
     # args.overfit_pct = 0.1
     args.kernels_per_layer = 2
     args.use_oversampled_dataset = True
+    args.save_path = os.path.join(
+        os.path.dirname(__file__), f"../experiments/{models[args.model]}"
+    )
+    args.experiment_save_path = args.save_path
     # args.dataset_folder = "data/precipitation/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5"
     # args.resume_from_checkpoint = f"lightning/precip_regression/{args.model}/UNetDS_Attention.ckpt"
-
+    print(json.dumps(args.__dict__, indent=4))
     train_regression(args)

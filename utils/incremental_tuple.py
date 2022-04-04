@@ -9,14 +9,10 @@ class IncrementalTouple:
             self.val = val
 
     def reciprocal(self):
-        return IncrementalTouple(
-            t.tensor([self.val[1] - self.val[0], self.val[1]])
-        )
+        return IncrementalTouple(t.tensor([self.val[1] - self.val[0], self.val[1]]))
 
     def __add__(self, x):
-        return IncrementalTouple(
-            self.val + (x.val if not t.isnan(x).any() else 0)
-        )
+        return IncrementalTouple(self.val + (x.val if not t.isnan(x).any() else 0))
 
     def __iadd__(self, x):
         if not t.isnan(x.val).any():

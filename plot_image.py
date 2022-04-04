@@ -52,11 +52,7 @@ def visualize_predictions(
                                 else to_plot[i]
                                 .cpu()
                                 .detach()
-                                .numpy()[
-                                    j,
-                                    : downsample_size[0],
-                                    : downsample_size[1],
-                                ]
+                                .numpy()[j, : downsample_size[0], : downsample_size[1],]
                             )
 
                     row_labels = ["x", "y", "preds"]

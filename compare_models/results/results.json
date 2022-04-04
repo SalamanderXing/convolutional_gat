@@ -1,20 +1,20 @@
 {
-    "local_temporal_conv": {
-        "val_loss": 0.045387499034404755,
-        "val_acc": 0.9362071752548218,
-        "val_prec": 0.1239394098520279,
-        "val_rec": 0.08043394237756729,
-        "val_denorm_mse": 1331845.0,
-        "forward_pass_time_s": 0.041550429582595826,
-        "n_parameters": 18720
+    "local_temporal_conv_small": {
+        "val_loss": 0.05619097128510475,
+        "val_acc": 0.8815321326255798,
+        "val_prec": 0.22331905364990234,
+        "val_rec": 0.1865631490945816,
+        "val_denorm_mse": 1648862.625,
+        "forward_pass_time_s": 0.004093306541442871,
+        "n_parameters": 8480
     },
-    "local_unet": {
-        "val_loss": 0.19925038516521454,
-        "val_acc": 0.9443024396896362,
-        "val_prec": 0.10151644796133041,
-        "val_rec": 0.03812059760093689,
-        "val_denorm_mse": 5846781.0,
-        "forward_pass_time_s": 0.11981244826316834,
-        "n_parameters": 4032548
+    "local_baseline": {
+        "val_loss": 0.09503127634525299,
+        "val_acc": 0.900748074054718,
+        "val_prec": 0.1454770565032959,
+        "val_rec": 0.04618372395634651,
+        "val_denorm_mse": 2788585.0,
+        "forward_pass_time_s": 0.00295526385307312,
+        "n_parameters": 81945672
     }
 }

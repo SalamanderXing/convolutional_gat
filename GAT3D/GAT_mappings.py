@@ -64,8 +64,7 @@ class LinearMapping(nn.Module):
 
 class SmaAt_UNetMapping(nn.Module):
     def __init__(
-        self,
-        mapping_type: str = "conv",
+        self, mapping_type: str = "conv",
     ):
         super().__init__()
         self.mapping_type = mapping_type
@@ -149,7 +148,7 @@ class ConvBlock3D(nn.Module):
             chin,
             chout,
             (first_kernel_dim, kernel_size, kernel_size),
-            padding='same'
+            padding="same",
         )
         self.expansion = chout / chin
         self.bn = nn.BatchNorm3d(chin)
@@ -184,14 +183,16 @@ class ConvMapping(nn.Module):
         self.net = nn.Sequential(
             # ConvBlock2D(6, 6, 0.15, False)
             # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
-            ConvBlock3D(groups, groups * 2, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.10, True),
+            ConvBlock3D(groups, groups * 2, 2, 2, 0.15, True),
+            ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.15, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 5, 0.15, True),
             # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.10, True),
-            ConvBlock3D(groups * 2, groups, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 5, 0.15, True),
+            ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.15, True),
+            ConvBlock3D(groups * 2, groups, 2, 2, 0.15, True),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
         )

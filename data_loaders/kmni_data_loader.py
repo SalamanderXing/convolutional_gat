@@ -50,17 +50,13 @@ class DataLoader:
 
     def stats(self):
         # all_training =
-        flat = t.cat(
-            tuple(t.load(fp) for fn, fp in listdir(self.data_folder))
-        ).view(-1)
+        flat = t.cat(tuple(t.load(fp) for fn, fp in listdir(self.data_folder))).view(-1)
         bins = np.unique(flat)
         """
         hist, _ = np.histogram(flat, bins)
         plt.plot(np.arange(hist), hist)
         """
-        norm = (flat - t.mean(self.normalizing_mean)) / t.mean(
-            self.normalizing_var
-        )
+        norm = (flat - t.mean(self.normalizing_mean)) / t.mean(self.normalizing_var)
         hist, _ = np.histogram(norm, len(bins))
         plt.plot(np.arange(len(hist)), hist)
 
@@ -98,9 +94,7 @@ class DataLoader:
             tuple(t.stack((s[:4], s[4:])) for s in segments)
         ).transpose(0, 1)
         if self.crop is not None:
-            split_segments = split_segments[
-                :, :, :, :, : self.crop, : self.crop
-            ]
+            split_segments = split_segments[:, :, :, :, : self.crop, : self.crop]
         """
         if self.merge_nodes:
             split_segments = t.cat(
@@ -127,9 +121,7 @@ class DataLoader:
         self.remainder = data[:, self.batch_size :]
         result = data[:, : self.batch_size].to(self.device)
         rand_indices = (
-            t.randperm(result.shape[1])
-            if self.shuffle
-            else t.arange(result.shape[1])
+            t.randperm(result.shape[1]) if self.shuffle else t.arange(result.shape[1])
         )
         # if self.merge_nodes:
         #    result = result.permute(0, 1, 2, 3, 4)

@@ -12,8 +12,7 @@ from ..unet_model import UnetModel
 import ipdb
 
 
-def get_metrics(models, models_folders, preprocessed_folder, downsample_size):
-    device = t.device("cuda" if t.cuda.is_available() else "cpu")
+def get_metrics(models, models_folders, preprocessed_folder, downsample_size, device):
     results = {}
     for model_folder, model in zip(models_folders, models):
         _, test_loader, _ = get_loaders(
@@ -45,7 +44,7 @@ def plot(folders, out_path, loader, models):
     for x, y in loader:
         for k in range(len(x)):
             raininess = y[k][y[k] != 0].numel() / y[k].numel()
-            if raininess >= 0.3:
+            if raininess >= 0.1:
                 preds = [model(x)[k] for model, name in zip(models, names)]
                 # ipdb.set_trace()
                 to_plot = [y[k]] + preds
@@ -59,9 +58,7 @@ def plot(folders, out_path, loader, models):
                             # else cur_to_plot[j, :, :]
                         )
 
-                row_labels = ["y"] + [
-                    " ".join(f.split("_")[1:]) for f in folders
-                ]
+                row_labels = ["y"] + [" ".join(f.split("_")[1:]) for f in folders]
                 for ax_, row in zip(ax[:, 0], row_labels):
                     ax_.set_ylabel(row)
 
@@ -92,18 +89,36 @@ def json_to_table(data: dict, out_path: str):
         f.write(result)
     return result
 
+def json_to_tex(data: dict, out_path: str):
+    result = "metric & "
+    model_keys = list(data.keys())
+    result += f'{"".join(""+el.replace("_", " ") +" & " for el in model_keys)} \\\\ \\hline \n'
+    feature_keys = data[list(data.keys())[0]].keys()
+    for feature_key in feature_keys:
+        result += f"{feature_key.replace('_',' ')} & "
+        for model_key in model_keys:
+            feature = data[model_key][feature_key]
+            result += f"{feature:.5f} & "
+        result += " \\\\ \\hline \n"
+    result += ""
+    with open(os.path.join(out_path, "results.tex"), "w") as f:
+        f.write(result)
+    return result
+
+
 
 def compare_models(
     base_path: str,
     folders: list[str],
     out_path="",
-    downsample_size=(80, 80),
-    preprocessed_folder: str = "/mnt/kmni_dataset/20_latest",
+    downsample_size=(40, 40),
+    preprocessed_folder: str = "/mnt/kmni_dataset/50_latest",
     dataset="kmni",
     plot_only=True,
+    cuda="cuda",
 ):
     with t.no_grad():
-        device = t.device("cuda" if t.cuda.is_available() else "cpu")
+        device = t.device("cuda" if (t.cuda.is_available() and cuda) else "cpu")
         train_loader, test_loader, _ = get_loaders(
             train_batch_size=2,
             test_batch_size=2,
@@ -123,12 +138,9 @@ def compare_models(
             model_path = os.path.join(data_folder, "model.pt")
             config = {}
             exec(
-                open(os.path.join(data_folder, "config.py")).read(),
-                config,
+                open(os.path.join(data_folder, "config.py")).read(), config,
             )
-            config = {
-                key: val for key, val in config.items() if key.upper() == key
-            }
+            config = {key: val for key, val in config.items() if key.upper() == key}
             print(json.dumps(config, indent=4, default=str))
             model_class = (
                 model_classes[config["MODEL_TYPE"]]
@@ -150,9 +162,10 @@ def compare_models(
             models.append(model)
         if not plot_only:
             results = get_metrics(
-                models, folders, preprocessed_folder, downsample_size
+                models, folders, preprocessed_folder, downsample_size, device
             )
             print(json_to_table(results, out_path))
+            print(json_to_tex(results, out_path))
             print(json.dumps(results, indent=4))
             with open(os.path.join(out_path, "results.json"), "w") as f:
                 json.dump(results, f, indent=4)
@@ -162,9 +175,11 @@ def compare_models(
 def main():
     base_folder = "convolutional_gat/experiments"
     folders = [
-        "local_temporal_conv",
+        "local_temporal_conv_small",
+        "local_baseline",
+        # "local_baseline2d"
         # "local_spatial_conv",
-        "local_unet",
+        # "local_unet",
         # "local_multi_stream_conv",
     ]
     compare_models(
@@ -172,6 +187,7 @@ def main():
         folders,
         out_path="convolutional_gat/compare_models/results",
         plot_only=False,
+        cuda=True,
     )
 
 

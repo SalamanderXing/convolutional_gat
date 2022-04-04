@@ -13,9 +13,10 @@ class precipitation_maps_h5(Dataset):
         num_output_images,
         train=True,
         transform=None,
+        hparams=None,
     ):
         super(precipitation_maps_h5, self).__init__()
-
+        self.hparams = hparams
         self.file_name = in_file
         self.n_images, self.nx, self.ny = h5py.File(self.file_name, "r")[
             "train" if train else "test"
@@ -27,9 +28,7 @@ class precipitation_maps_h5(Dataset):
 
         self.train = train
         # Dataset is all the images
-        self.size_dataset = self.n_images - (
-            num_input_images + num_output_images
-        )
+        self.size_dataset = self.n_images - (num_input_images + num_output_images)
         # self.size_dataset = int(self.n_images/(num_input_images+num_output_images))
         self.transform = transform
         self.dataset = None
@@ -41,9 +40,9 @@ class precipitation_maps_h5(Dataset):
         #     dataset = dataFile["train" if self.train else "test"]['images'][index:index+self.sequence_length]
         # load the file here (load as singleton)
         if self.dataset is None:
-            self.dataset = h5py.File(
-                self.file_name, "r", rdcc_nbytes=1024 ** 3
-            )["train" if self.train else "test"]["images"]
+            self.dataset = h5py.File(self.file_name, "r", rdcc_nbytes=1024 ** 3)[
+                "train" if self.train else "test"
+            ]["images"]
         imgs = np.array(
             self.dataset[index : index + self.sequence_length], dtype="float32"
         )
@@ -66,11 +65,14 @@ class precipitation_maps_oversampled_h5(Dataset):
         in_file,
         num_input_images,
         num_output_images,
+        *,
+        hparams,
         train=True,
         transform=None,
         lag=4,
     ):
         super(precipitation_maps_oversampled_h5, self).__init__()
+        self.hparams = hparams
         self.lag = 4
         self.file_name = in_file
         self.samples, _, _, _ = h5py.File(self.file_name, "r")[
@@ -105,9 +107,9 @@ class precipitation_maps_oversampled_h5(Dataset):
     def __getitem__(self, index):
         # load the file here (load as singleton)
         if self.dataset is None:
-            self.dataset = h5py.File(
-                self.file_name, "r", rdcc_nbytes=1024 ** 3
-            )["train" if self.train else "test"]["images"]
+            self.dataset = h5py.File(self.file_name, "r", rdcc_nbytes=1024 ** 3)[
+                "train" if self.train else "test"
+            ]["images"]
         imgs = np.array(self.dataset[index], dtype="float32")
         # print("******SHAPE: ", imgs.shape)
         # add transforms
@@ -117,12 +119,23 @@ class precipitation_maps_oversampled_h5(Dataset):
         # target_img = imgs[-1] # Modified
         target_img = imgs[self.num_input :]
 
-        input_img = t.from_numpy(self.make_graph_from_image_sequence(input_img)[
-            :, :4
-        ]).permute(2, 3, 1, 0)
-        target_img = t.from_numpy(self.make_graph_from_image_sequence(target_img)[
-            :, :4
-        ]).permute(2, 3, 1, 0)
+        input_img = t.from_numpy(
+            self.make_graph_from_image_sequence(input_img)[:, :4]
+        ).permute(2, 3, 1, 0)
+        target_img = t.from_numpy(
+            self.make_graph_from_image_sequence(target_img)[:, :4]
+        ).permute(2, 3, 1, 0)
+        target_img = target_img[
+            : self.hparams.subsample_size, : self.hparams.subsample_size
+        ]
+        input_img = input_img[
+            : self.hparams.subsample_size, : self.hparams.subsample_size
+        ]
+        """
+        if self.hparams.model != "GAT3D":
+            input_img = input_img[:, :, :, 0].permute(2, 0, 1)
+            target_img = target_img[:, :, :, 0].permute(2, 0, 1)
+        """
         # print(f"{input_img.shape} {target_img.shape}")
 
         return input_img, target_img
@@ -133,12 +146,7 @@ class precipitation_maps_oversampled_h5(Dataset):
 
 class precipitation_maps_classification_h5(Dataset):
     def __init__(
-        self,
-        in_file,
-        num_input_images,
-        img_to_predict,
-        train=True,
-        transform=None,
+        self, in_file, num_input_images, img_to_predict, train=True, transform=None,
     ):
         super(precipitation_maps_classification_h5, self).__init__()
 
@@ -166,9 +174,9 @@ class precipitation_maps_classification_h5(Dataset):
         #     dataset = dataFile["train" if self.train else "test"]['images'][index:index+self.sequence_length]
         # load the file here (load as singleton)
         if self.dataset is None:
-            self.dataset = h5py.File(
-                self.file_name, "r", rdcc_nbytes=1024 ** 3
-            )["train" if self.train else "test"]["images"]
+            self.dataset = h5py.File(self.file_name, "r", rdcc_nbytes=1024 ** 3)[
+                "train" if self.train else "test"
+            ]["images"]
         imgs = np.array(
             self.dataset[index : index + self.sequence_length], dtype="float32"
         )

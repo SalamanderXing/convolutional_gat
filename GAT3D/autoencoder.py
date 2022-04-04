@@ -7,9 +7,7 @@ import ipdb
 def create_encoder_single_conv(in_chs, out_chs, kernel):
     assert kernel % 2 == 1
     return nn.Sequential(
-        nn.Conv2d(
-            in_chs, out_chs, kernel_size=kernel, padding=(kernel - 1) // 2
-        ),
+        nn.Conv2d(in_chs, out_chs, kernel_size=kernel, padding=(kernel - 1) // 2),
         nn.BatchNorm2d(out_chs),
         nn.ReLU(inplace=True),
     )
@@ -49,13 +47,10 @@ class EncoderModule(nn.Module):
     def __init__(self, chs, repeat_num, use_inception):
         super().__init__()
         if use_inception:
-            layers = [
-                EncoderInceptionModuleSignle(chs) for i in range(repeat_num)
-            ]
+            layers = [EncoderInceptionModuleSignle(chs) for i in range(repeat_num)]
         else:
             layers = [
-                create_encoder_single_conv(chs, chs, 3)
-                for i in range(repeat_num)
+                create_encoder_single_conv(chs, chs, 3) for i in range(repeat_num)
             ]
         self.convs = nn.Sequential(*layers)
 
@@ -140,13 +135,10 @@ class DecoderModule(nn.Module):
     def __init__(self, chs, repeat_num, use_inception):
         super().__init__()
         if use_inception:
-            layers = [
-                DecoderInceptionModuleSingle(chs) for i in range(repeat_num)
-            ]
+            layers = [DecoderInceptionModuleSingle(chs) for i in range(repeat_num)]
         else:
             layers = [
-                create_decoder_single_conv(chs, chs, 3)
-                for i in range(repeat_num)
+                create_decoder_single_conv(chs, chs, 3) for i in range(repeat_num)
             ]
         self.convs = nn.Sequential(*layers)
 
@@ -155,9 +147,7 @@ class DecoderModule(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(
-        self, out_channels=6, use_inception=True, repeat_per_module=1
-    ):
+    def __init__(self, out_channels=6, use_inception=True, repeat_per_module=1):
         super().__init__()
         # stages
         self.stage1 = DecoderModule(256, repeat_per_module, use_inception)

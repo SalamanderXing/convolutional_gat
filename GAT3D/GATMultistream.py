@@ -208,13 +208,9 @@ class GatSpatial(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(
-            t.empty(size=(in_features, out_features))
-        )  # [4, 4]
+        self.W = nn.Parameter(t.empty(size=(in_features, out_features)))  # [4, 4]
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        self.a_spatial = nn.Parameter(
-            t.empty(size=(2 * out_features, 1))
-        )  # [8, 1]
+        self.a_spatial = nn.Parameter(t.empty(size=(2 * out_features, 1)))  # [8, 1]
         nn.init.xavier_uniform_(self.a_spatial.data, gain=1.414)
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         # self.is_conv = conv
@@ -235,9 +231,7 @@ class GatSpatial(nn.Module):
         )  # not a bug that is says temporal
 
     def spatial_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
-        attention = compute_attention(
-            "spatial", Wh, self.a_spatial, self.leakyrelu
-        )
+        attention = compute_attention("spatial", Wh, self.a_spatial, self.leakyrelu)
         Wh_ = []
         for i in range(V):
             at = t.zeros(N, H, W, self.out_features).to(self.W.device)
@@ -303,9 +297,7 @@ class GatTemporal(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
-        self.W = nn.Parameter(
-            t.empty(size=(in_features, out_features))
-        )  # [4, 4]
+        self.W = nn.Parameter(t.empty(size=(in_features, out_features)))  # [4, 4]
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.a_temporal = nn.Parameter(
             t.empty(size=(2 * image_height * image_width, 1))
@@ -330,9 +322,7 @@ class GatTemporal(nn.Module):
         # self.decoder = DecoderMapping()
 
     def temporal_forward(self, N, V, T, H, W, Wh, adj_mat_norm_d12):
-        attention = compute_attention(
-            "temporal", Wh, self.a_temporal, self.leakyrelu
-        )
+        attention = compute_attention("temporal", Wh, self.a_temporal, self.leakyrelu)
         attention = t.diag_embed(attention)
         Wh = Wh.view(N, V, H * W, T)  # Warning, T might be undefined
         Wh_ = []

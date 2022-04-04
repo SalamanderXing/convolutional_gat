@@ -4,6 +4,7 @@ from .unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
 from .layers import CBAM
 import pytorch_lightning as pl
 from .regression_lightning import Precip_regression_base
+import torch as t
 import ipdb
 
 
@@ -111,30 +112,17 @@ class UNetDS(Precip_regression_base):
         self.down2 = DownDS(128, 256, kernels_per_layer=kernels_per_layer)
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(
-            512, 1024 // factor, kernels_per_layer=kernels_per_layer
-        )
+        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
         self.up1 = UpDS(
-            1024,
-            512 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up2 = UpDS(
-            512,
-            256 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up3 = UpDS(
-            256,
-            128 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
-        self.up4 = UpDS(
-            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
-        )
+        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
 
         self.outc = OutConv(64, self.n_classes)
 
@@ -172,35 +160,22 @@ class UNetDS_Attention(Precip_regression_base):
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         self.cbam4 = CBAM(512, reduction_ratio=reduction_ratio)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(
-            512, 1024 // factor, kernels_per_layer=kernels_per_layer
-        )
+        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
         self.cbam5 = CBAM(1024 // factor, reduction_ratio=reduction_ratio)
         self.up1 = UpDS(
-            1024,
-            512 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up2 = UpDS(
-            512,
-            256 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up3 = UpDS(
-            256,
-            128 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
-        self.up4 = UpDS(
-            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
-        )
+        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
 
         self.outc = OutConv(64, self.n_classes)
 
-    def forward(self, x):
+    def single_forward(self, x):
         x1 = self.inc(x)
         x1Att = self.cbam1(x1)
         x2 = self.down1(x1)
@@ -216,6 +191,48 @@ class UNetDS_Attention(Precip_regression_base):
         x = self.up3(x, x2Att)
         x = self.up4(x, x1Att)
         logits = self.outc(x)
+        return logits
+
+    def forward(self, xs):
+        if len(xs.shape) > 4:
+            """
+            x = xs.permute(0, 4, 3, 1, 2)
+            b, v, time, w, h = x.shape
+            x = x.reshape(b*v, time, w, h)
+            rand_indices = t.randperm(x.shape[0])
+            x = x[rand_indices, :, :, :]
+            logits = self.single_forward(x).view(b, v, time, w, h).permute(0, 3, 4, 2, 1) # permute(2, 3, 1, 0)
+            """
+            xp = xs.permute(4, 0, 3, 1, 2)
+            x_slices = ((xp[0], xp[1]), (xp[2], xp[3]), (xp[4], xp[5]))
+            x = t.cat(tuple(t.cat(slice, dim=2) for slice in x_slices), dim=-1)
+            pred = self.single_forward(x)
+            vslices = tuple(pred[:, :, :, i : i + 80] for i in range(3))
+            pred_slices = tuple(
+                (vslice[:, :, 0:80], vslice[:, :, 80:160]) for vslice in vslices
+            )
+            logits = t.stack(
+                (
+                    pred_slices[0][0],
+                    pred_slices[0][1],
+                    pred_slices[1][0],
+                    pred_slices[1][1],
+                    pred_slices[2][0],
+                    pred_slices[2][1],
+                )
+            ).permute(1, 3, 4, 2, 0)
+
+        else:
+            logits = self.single_forward(xs.permute(0, 3, 1, 2))
+        """
+        preds = tuple(
+            self.single_forward(xs[:, :, :, :, i].permute(0, 3, 1, 2)).permute(
+                0, 2, 3, 1
+            )
+            for i in range(xs.shape[-1])
+        )
+        logits = t.stack(preds, dim=-1)
+        """
         return logits
 
 
@@ -239,30 +256,17 @@ class UNetDS_Attention_4CBAMs(Precip_regression_base):
         self.down3 = DownDS(256, 512, kernels_per_layer=kernels_per_layer)
         self.cbam4 = CBAM(512, reduction_ratio=reduction_ratio)
         factor = 2 if self.bilinear else 1
-        self.down4 = DownDS(
-            512, 1024 // factor, kernels_per_layer=kernels_per_layer
-        )
+        self.down4 = DownDS(512, 1024 // factor, kernels_per_layer=kernels_per_layer)
         self.up1 = UpDS(
-            1024,
-            512 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            1024, 512 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up2 = UpDS(
-            512,
-            256 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            512, 256 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
         self.up3 = UpDS(
-            256,
-            128 // factor,
-            self.bilinear,
-            kernels_per_layer=kernels_per_layer,
+            256, 128 // factor, self.bilinear, kernels_per_layer=kernels_per_layer,
         )
-        self.up4 = UpDS(
-            128, 64, self.bilinear, kernels_per_layer=kernels_per_layer
-        )
+        self.up4 = UpDS(128, 64, self.bilinear, kernels_per_layer=kernels_per_layer)
 
         self.outc = OutConv(64, self.n_classes)
 

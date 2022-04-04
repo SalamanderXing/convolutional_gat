@@ -40,7 +40,7 @@ class GraphAttentionLayer(nn.Module):
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.A = self.A.cuda(h.get_device())
+        self.A = self.A.cuda(h.get_device()) if h.is_cuda else self.A
         adj_mat = self.B[:, :] + self.A[:, :]
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
@@ -132,7 +132,7 @@ class GraphAttentionLayer2D(nn.Module):
 
         # Learnable Adjacency Matrix
         adj_mat = None
-        self.A = self.A.cuda(h.get_device())
+        self.A = self.A.cuda(h.get_device()) if h.is_cuda else self.A
         adj_mat = self.B[:, :] + self.A[:, :]
         adj_mat_min = t.min(adj_mat)
         adj_mat_max = t.max(adj_mat)
@@ -206,6 +206,7 @@ class BaselineModel2D(nn.Module):
         n_vertices: int,
         time_steps: int = 4,
         mapping_type="linear",
+        attention_type="placeholder"
     ):
         super().__init__()
         self.mapping_type = mapping_type
@@ -242,6 +243,7 @@ class BaselineModel(nn.Module):
         n_vertices: int,
         time_steps: int = 4,
         mapping_type="linear",
+        attention_type="placeholder"
     ):
         super().__init__()
         self.mapping_type = mapping_type

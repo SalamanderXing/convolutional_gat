@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 MODEL_TYPE = "unet"
-PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_full_size"
+PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_latest"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"
 EPOCHS = 30
@@ -14,4 +14,4 @@ GAMMA = 0.95
 PLOT = False
 CRITERION = nn.MSELoss()
 OPTIMIZER = torch.optim.Adam
-DOWNSAMPLE_SIZE = (None, 20)
+DOWNSAMPLE_SIZE = (None, 80)

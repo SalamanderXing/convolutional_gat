@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from convolutional_gat.baseline_model import BaselineModel
 
-MODEL = BaselineModel
+MODEL_TYPE = "baseline"
 PREPROCESSED_FOLDER = "/mnt/kmni_dataset/20_preprocessed"
 MAPPING_TYPE = "linear"
 DATASET = "kmni"

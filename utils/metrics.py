@@ -31,12 +31,10 @@ def recall(y_true, y_pred):
     TP = ((y_pred == 1) & (y_true == 1)).sum()
     # FP = ((y_pred == 1) & (y_true == 0)).sum()
     FN = ((y_pred == 0) & (y_true == 1)).sum()
-    return IncrementalTouple(t.tensor([TP , (TP + FN)]))
+    return IncrementalTouple(t.tensor([TP, (TP + FN)]))
 
 
 def denormalize(x, mean, var):
     mean = t.mean(mean)
     var = t.var(var)
     return x * var + mean
-
-

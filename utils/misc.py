@@ -4,7 +4,95 @@ import torch as t
 import ipdb
 import enum
 import matplotlib.pyplot as plt
-from ..unet_model import UnetModel
+from argparse import ArgumentParser
+from ..baseline_model import BaselineModel, BaselineModel2D
+
+# from ..unet_model import UnetModel
+from ..lightning.models.unet_precip_regression_lightning import UNetDS_Attention
+
+
+class UnetModel(UNetDS_Attention):
+    def __init__(
+        self,
+        image_width,
+        image_height,
+        n_vertices,
+        attention_type,
+        mapping_type,
+        n_heads_per_layer=(1,),
+    ):
+        hparams = ArgumentParser().parse_args()
+        hparams.__dict__.update(
+            {
+                "model": "UNetDS_Attention",
+                "n_channels": 4,
+                "n_classes": 4,
+                "kernels_per_layer": 2,
+                "bilinear": True,
+                "reduction_ratio": 16,
+                "lr_patience": 4,
+                "num_input_images": 4,
+                "num_output_images": 4,
+                "valid_size": 0.1,
+                "use_oversampled_dataset": True,
+                "logger": True,
+                "checkpoint_callback": True,
+                "early_stop_callback": False,
+                "default_root_dir": None,
+                "gradient_clip_val": 0,
+                "process_position": 0,
+                "num_nodes": 1,
+                "num_processes": 1,
+                "gpus": 1,
+                "auto_select_gpus": False,
+                "num_tpu_cores": None,
+                "log_gpu_memory": None,
+                "progress_bar_refresh_rate": 1,
+                "overfit_pct": 0.0,
+                "track_grad_norm": -1,
+                "check_val_every_n_epoch": 1,
+                "fast_dev_run": None,
+                "accumulate_grad_batches": 1,
+                "max_epochs": 1000,
+                "min_epochs": 1,
+                "max_steps": None,
+                "min_steps": None,
+                "train_percent_check": 1.0,
+                "val_percent_check": 1.0,
+                "test_percent_check": 1.0,
+                "val_check_interval": 1.0,
+                "log_save_interval": 100,
+                "row_log_interval": 10,
+                "distributed_backend": None,
+                "precision": 32,
+                "print_nan_grads": False,
+                "weights_summary": "full",
+                "weights_save_path": None,
+                "num_sanity_val_steps": 2,
+                "truncated_bptt_steps": None,
+                "resume_from_checkpoint": None,
+                "profiler": None,
+                "benchmark": False,
+                "deterministic": False,
+                "reload_dataloaders_every_epoch": False,
+                "auto_lr_find": False,
+                "replace_sampler_ddp": True,
+                "progress_bar_callback": True,
+                "terminate_on_nan": False,
+                "auto_scale_batch_size": False,
+                "amp_level": "O1",
+                "dataset_folder": "convolutional_gat/data/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
+                "experiment_save_path": "local_temporal_conv",
+                "batch_size": 6,
+                "learning_rate": 0.001,
+                "epochs": 200,
+                "es_patience": 30,
+                "save_path": "/home/bluesk/Documents/convolutional_gat/lightning/../experiments/local_unet",
+            }
+        )
+        super().__init__(hparams=hparams)
+
+
 from ..GAT3D.GATMultistream import Model as GatModel
 from ..data_loaders.get_loaders import get_loaders
 import os
@@ -14,6 +102,8 @@ model_classes = {
     "temporal": GatModel,
     "spatial": GatModel,
     "multi_stream": GatModel,
+    "baseline": BaselineModel,
+    "baseline_2d": BaselineModel2D,
 }
 
 
@@ -82,9 +172,7 @@ def visualize_predictions(
                     ]
                     for i, row in enumerate(ax):
                         for j, col in enumerate(row):
-                            col.imshow(
-                                to_plot[i].cpu().detach().numpy()[:, :, j, 0]
-                            )
+                            col.imshow(to_plot[i].cpu().detach().numpy()[:, :, j, 0])
 
                     row_labels = ["x", "y", "preds"]
                     for ax_, row in zip(ax[:, 0], row_labels):
@@ -104,10 +192,7 @@ def visualize_predictions(
 
 
 def plot_history(
-    history: dict,
-    title: str = "Training History",
-    save=False,
-    filename="history",
+    history: dict, title: str = "Training History", save=False, filename="history",
 ):
     plt.clf()
     plt.plot(

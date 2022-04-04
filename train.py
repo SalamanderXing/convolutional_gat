@@ -1,5 +1,6 @@
 import torch as t
 import torch.nn as nn
+
 # from torchinfo import summary
 import os
 from tqdm import tqdm
@@ -46,17 +47,14 @@ def test(model: nn.Module, device, loader, flag="val"):
                 y = t.pow(y, 1 / loader.power)
                 y_hat = t.pow(y_hat, 1 / loader.power)
                 running_loss += (
-                    t.sum((y - y_hat) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
+                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
                 ).cpu()
 
                 unique = t.unique(y)
                 threshold = unique[int(len(unique) * (1 / 2))].cpu()
                 total_length += len(x)
                 acc, prec, rec = get_metrics(
-                    y.detach(),
-                    y_hat.detach(),
-                    threshold,  # second_min  # 0.04011
+                    y.detach(), y_hat.detach(), threshold,  # second_min  # 0.04011
                 )
                 running_acc += acc
                 running_prec += prec
@@ -121,10 +119,7 @@ def train_single_epoch(
             optimizer.step()  # Adjust model parameters
             total_length += len(x)
             running_loss += (
-                (
-                    t.sum((y_hat - y) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                )
+                (t.sum((y_hat - y) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device)))
                 .detach()
                 .cpu()
             )
@@ -188,7 +183,7 @@ def train(
             _, image_width, image_height, _ = x.shape
             n_vertices = 6  # unused in this case
         break
-    model_class = model_classes[model_type]
+    model_class = model_classes[model_type] if not "unet" in model_type else UnetModel
     model = model_class(
         image_width=image_width,
         image_height=image_height,
@@ -203,9 +198,7 @@ def train(
 
     # summary(model, input_size=x.shape)
 
-    optimizer = optimizer(
-        model.parameters(), lr=learning_rate, weight_decay=0.01
-    )
+    optimizer = optimizer(model.parameters(), lr=learning_rate, weight_decay=0.01)
     if not reduce_lr_on_plateau:
         scheduler = t.optim.lr_scheduler.StepLR(
             optimizer, step_size=lr_step, gamma=gamma

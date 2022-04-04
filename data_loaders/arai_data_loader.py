@@ -194,7 +194,7 @@ def get_loaders(
     preprocessed_folder: str,
     device,
     *,
-    downsample_size = (256, 256),
+    downsample_size=(256, 256),
 ):
     with open(os.path.join(preprocessed_folder, "metadata.json")) as f:
         metadata = json.load(f)

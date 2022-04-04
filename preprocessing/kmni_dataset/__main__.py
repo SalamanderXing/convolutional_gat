@@ -17,18 +17,14 @@ def draw_rectangle(img, x0, y0, width, height, border=3):  # not currently used
     original = t.clone(img[x0 : x0 + width, y0 : y0 + height])
     img[x0 : x0 + width, y0 : y0 + height] = 200
     inner = original[border:-border, border:-border]
-    img[
-        x0 + border : x0 + width - border, y0 + border : y0 + height - border
-    ] = inner
+    img[x0 + border : x0 + width - border, y0 + border : y0 + height - border] = inner
 
 
 def get_z_score_normalizing_constants(preprecessed_folder: str):
     acc = t.cat(
         tuple(
             t.load(fpath)
-            for fname, fpath in listdir(
-                os.path.join(preprecessed_folder, "train")
-            )
+            for fname, fpath in listdir(os.path.join(preprecessed_folder, "train"))
         )
     ).float()
     result = {
@@ -81,9 +77,7 @@ def preprocess(
             ]
             for file, file_path in days:
                 raw_content = t.from_numpy(
-                    h5py.File(file_path)["image1"]["image_data"][...].astype(
-                        np.int64
-                    )
+                    h5py.File(file_path)["image1"]["image_data"][...].astype(np.int64)
                     # .astype(  # read file, we keep it a uint8 to save memory
                     #    np.uint8
                     # )
@@ -105,8 +99,7 @@ def preprocess(
                 content = (
                     t.stack(
                         tuple(
-                            raw_content[x : x + 80, y : y + 80]
-                            for x, y in coordinates
+                            raw_content[x : x + 80, y : y + 80] for x, y in coordinates
                         )
                     )
                     if split_areas
@@ -178,11 +171,7 @@ if __name__ == "__main__":
     print(json.dumps(args.__dict__, indent=4))
     if args.action == "preprocess":
         preprocess(
-            args.in_dir,
-            args.out_dir,
-            args.from_year,
-            args.rain_threshold,
-            False,
+            args.in_dir, args.out_dir, args.from_year, args.rain_threshold, False,
         )
         test_split(args.out_dir)
     elif args.action == "test-split":

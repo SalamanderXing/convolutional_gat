@@ -52,18 +52,14 @@ def get_frequencies_unet_dataset(
 
 
 def plot_freqs(
-    in_dir: str,
-    freqs_files: tuple[str, ...] = ("stats_gat.json", "stats_unet.json"),
+    in_dir: str, freqs_files: tuple[str, ...] = ("stats_gat.json", "stats_unet.json"),
 ):
     all_freqs = []
     for file_name in freqs_files:
         with open(os.path.join(in_dir, file_name)) as f:
             all_freqs.append(
                 sorted(
-                    [
-                        (float(key), float(val))
-                        for key, val in json.load(f).items()
-                    ],
+                    [(float(key), float(val)) for key, val in json.load(f).items()],
                     key=lambda x: x[0],
                 )
             )
