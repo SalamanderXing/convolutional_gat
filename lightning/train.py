@@ -11,6 +11,8 @@ from .models.gat_lightning import (
     GAT3DLightning,
     GAT2DLightning,
     GAT1DLightning,
+    ConvGAT,
+    ConvGAT3D
 )
 from pytorch_lightning import loggers
 import argparse
@@ -36,9 +38,7 @@ def get_batch_size(hparams):
         raise NotImplementedError(f"Model '{hparams.model}' not implemented")
 
     trainer = pl.Trainer(gpus=hparams.gpus)
-    new_batch_size = trainer.scale_batch_size(
-        net, mode="binsearch", init_val=8
-    )
+    new_batch_size = trainer.scale_batch_size(net, mode="binsearch", init_val=8)
     print("New biggest batch_size: ", new_batch_size)
     return new_batch_size
 
@@ -54,21 +54,17 @@ def train_regression(hparams):
         net = unet_regr.CGAT(hparams=hparams)
     elif hparams.model == "GAT3D":
         net = GAT3DLightning(hparams)
-    elif hparams.model == "GAT3D-small":
-        net = GAT3DLightning(hparams)
     elif hparams.model == "GAT2D":
         net = GAT2DLightning(hparams)
     elif hparams.model == "GAT1D":
         net = GAT1DLightning(hparams)
-
+    elif hparams.model == "ConvGAT":
+        net = ConvGAT(hparams)
+    elif hparams.model == "ConvGAT3D":
+        net = ConvGAT3D(hparams)
     else:
         raise NotImplementedError(f"Model '{hparams.model}' not implemented")
-
-    # torchsummary.summary(net, (12, 288, 288), device="cpu")
-    # return
-
-    # default_save_path = "convolutional_gat/experiments"
-
+    """
     checkpoint_callback = ModelCheckpoint(
         filepath=os.getcwd()
         + "/"
@@ -82,6 +78,7 @@ def train_regression(hparams):
         mode="min",
         prefix=net.__class__.__name__ + "_rain_threshhold_50_",
     )
+    """
     lr_logger = LearningRateLogger()
     tb_logger = loggers.TensorBoardLogger(
         save_dir=hparams.save_path, name=net.__class__.__name__
@@ -117,7 +114,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--dataset_folder",
-        default="convolutional_gat/data/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
+        default="train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5",
         type=str,
     )
     parser.add_argument(
@@ -131,20 +128,26 @@ if __name__ == "__main__":
 
     args.fast_dev_run = False  # True
     models = {
+        "ConvGAT": "local_convgat",
+        "ConvGAT3D": "local_convgat3d",
         "UNetDS_Attention": "local_unet",
         "GAT3D": "local_temporal_conv",
-        "GAT3D-small": "local_temporal_conv_small",
         "GAT2D": "local_baseline2d",
         "GAT1D": "local_baseline",
     }
-    args.n_channels = 4
+    sizes = {"small": 20, "medium": 40, "large": 80, "xlarge": 100}
+    args.num_input_images = 9
+    args.num_output_images = 9
+    args.size = "large"
+    args.subsample_size = sizes[args.size]
+    args.n_channels = 9
     args.gpus = 1
-    args.model = list(models.keys())[3]  #
-
-    args.subsample_size = 80
-    if args.model in ("GAT3D-small", "GAT1D", "GAT2D"):
-        args.subsample_size = 40
+    model_index = -1
+    args.model = list(models.keys())[1]  #
+    args.nregions = 6
     args.batch_size = 6  # if args.model == "GAT3D" else 2
+    if args.model == list(models.keys())[1]:
+        args.batch_size = 1
     args.lr_patience = 4
     args.es_patience = 30
     # args.val_check_interval = 0.25
@@ -152,8 +155,10 @@ if __name__ == "__main__":
     args.kernels_per_layer = 2
     args.use_oversampled_dataset = True
     args.save_path = os.path.join(
-        os.path.dirname(__file__), f"../experiments/{models[args.model]}"
+        os.path.dirname(__file__),
+        f"../experiments/{models[args.model]}_{args.size}{'_' + str(args.nregions) + 'v' if args.nregions < 6 else ''}",
     )
+    assert os.path.exists(args.save_path), f"Save path {args.save_path} does not exist!"
     args.experiment_save_path = args.save_path
     # args.dataset_folder = "data/precipitation/train_test_2016-2019_input-length_12_img-ahead_6_rain-threshhold_50.h5"
     # args.resume_from_checkpoint = f"lightning/precip_regression/{args.model}/UNetDS_Attention.ckpt"

@@ -7,7 +7,7 @@ from torch.autograd import Variable
 import ipdb
 
 
-dev = t.device("cuda:0") if t.cuda.is_available() else t.device("cpu")
+# dev = t.device("cuda:0") if t.cuda.is_available() else t.device("cpu")
 
 
 class GraphAttentionLayer(nn.Module):
@@ -80,7 +80,10 @@ class GATMultiHead(nn.Module):
         super().__init__()
         self.attentions = [
             GraphAttentionLayer(
-                in_features=nfeat, out_features=nhid, n_vertices=n_vertices, alpha=alpha
+                in_features=nfeat,
+                out_features=nhid,
+                n_vertices=n_vertices,
+                alpha=alpha,
             )
             for _ in range(nheads)
         ]
@@ -146,9 +149,12 @@ class GraphAttentionLayer2D(nn.Module):
         attention = t.diag_embed(attention)
         Wh_ = []
         for i in range(V):
-            at = t.zeros(N, self.out_features, C).to(dev)
+            at = t.zeros(N, self.out_features, C).to(self.W.device)
             for j in range(V):
-                at += t.matmul(Wh[:, j, :, :].to(dev), attention[:, i, j, :, :].to(dev))
+                at += t.matmul(
+                    Wh[:, j, :, :].to(self.W.device),
+                    attention[:, i, j, :, :].to(self.W.device),
+                )
             Wh_.append(at)
 
         h_prime = t.stack((Wh_))
@@ -184,7 +190,10 @@ class GATMultiHead2D(nn.Module):
         super().__init__()
         self.attentions = [
             GraphAttentionLayer2D(
-                in_features=nfeat, out_features=nhid, n_vertices=n_vertices, alpha=alpha
+                in_features=nfeat,
+                out_features=nhid,
+                n_vertices=n_vertices,
+                alpha=alpha,
             )
             for _ in range(nheads)
         ]
@@ -204,7 +213,7 @@ class BaselineModel2D(nn.Module):
         image_width: int,
         image_height: int,
         n_vertices: int,
-        time_steps: int = 4,
+        time_steps: int = 9,
         mapping_type="linear",
         attention_type="placeholder"
     ):
@@ -241,7 +250,7 @@ class BaselineModel(nn.Module):
         image_width: int,
         image_height: int,
         n_vertices: int,
-        time_steps: int = 4,
+        time_steps: int = 9,
         mapping_type="linear",
         attention_type="placeholder"
     ):
@@ -270,3 +279,38 @@ class BaselineModel(nn.Module):
         x = self.output_layer(x)
         x = x.view(B, H, W, T, V)
         return t.tanh(x)
+
+
+class GAT(nn.Module):
+    def __init__(
+        self,
+        *,
+        image_width: int = 80,
+        image_height: int = 80,
+        n_vertices: int = 6,
+        time_steps: int = 4,
+        input_size: int = 256,
+        mapping_type="linear",
+        attention_type="placeholder"
+    ):
+        super().__init__()
+        n_features = input_size
+        self.hidden_layer = GATMultiHead(
+            nfeat=n_features,
+            nhid=n_features,
+            n_vertices=n_vertices,
+            alpha=0.2,
+            nheads=1,
+        )
+        self.output_layer = GATMultiHead(
+            nfeat=n_features,
+            nhid=n_features,
+            n_vertices=n_vertices,
+            alpha=0.2,
+            nheads=1,
+        )
+
+    def forward(self, x):
+        x = self.hidden_layer(x)
+        x = self.output_layer(x)
+        return F.relu(x)

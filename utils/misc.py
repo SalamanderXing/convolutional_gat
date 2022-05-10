@@ -6,6 +6,13 @@ import enum
 import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from ..baseline_model import BaselineModel, BaselineModel2D
+from ..GAT3D.conv_gat import ConvGAT
+from ..GAT3D.GATMultistream import Model as GatModel
+from ..GAT3D.conv_gat3d import ConvGAT3D
+
+# from ..data_loaders.get_loaders import get_loaders
+import os
+
 
 # from ..unet_model import UnetModel
 from ..lightning.models.unet_precip_regression_lightning import UNetDS_Attention
@@ -25,8 +32,8 @@ class UnetModel(UNetDS_Attention):
         hparams.__dict__.update(
             {
                 "model": "UNetDS_Attention",
-                "n_channels": 4,
-                "n_classes": 4,
+                "n_channels": 9,
+                "n_classes": 9,
                 "kernels_per_layer": 2,
                 "bilinear": True,
                 "reduction_ratio": 16,
@@ -93,10 +100,6 @@ class UnetModel(UNetDS_Attention):
         super().__init__(hparams=hparams)
 
 
-from ..GAT3D.GATMultistream import Model as GatModel
-from ..data_loaders.get_loaders import get_loaders
-import os
-
 model_classes = {
     "unet": UnetModel,
     "temporal": GatModel,
@@ -104,6 +107,8 @@ model_classes = {
     "multi_stream": GatModel,
     "baseline": BaselineModel,
     "baseline_2d": BaselineModel2D,
+    "convgat": ConvGAT,
+    "convgat3d": ConvGAT3D,
 }
 
 

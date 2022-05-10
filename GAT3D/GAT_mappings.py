@@ -71,7 +71,6 @@ class SmaAt_UNetMapping(nn.Module):
         self.unet = SmaAt_UNet(n_channels=4, n_classes=4)
 
     def forward(self, x):
-        # ipdb.set_trace()
         old_x = x
         acc = []
         x = x.permute(1, 0, 4, 2, 3)
@@ -105,21 +104,10 @@ class SmaAt_UNetMapping(nn.Module):
 
 class ConvBlock2D(nn.Module):
     def __init__(
-        self,
-        in_features,
-        out_features,
-        kernel_size,
-        dropout=0.15,
-        nonlinear=True,
+        self, in_features, out_features, kernel_size, dropout=0.15, nonlinear=True,
     ):
         super().__init__()
-        self.conv = nn.Conv2d(
-            in_features,
-            out_features,
-            kernel_size,
-            padding="same",
-            groups=in_features,
-        )
+        self.conv = nn.Conv2d(in_features, out_features, kernel_size, padding="same",)
         self.do = nn.Dropout(dropout)
         self.nonlinear = nonlinear
 
@@ -140,8 +128,8 @@ class ConvBlock3D(nn.Module):
         first_kernel_dim: int,
         kernel_size: int,
         dropout=0.15,
+        skip=False,
         nonlinear=True,
-        skip=True,
     ):
         super().__init__()
         self.conv = nn.Conv3d(
@@ -149,6 +137,7 @@ class ConvBlock3D(nn.Module):
             chout,
             (first_kernel_dim, kernel_size, kernel_size),
             padding="same",
+            groups=4,
         )
         self.expansion = chout / chin
         self.bn = nn.BatchNorm3d(chin)
@@ -157,7 +146,7 @@ class ConvBlock3D(nn.Module):
         self.nonlinear = nonlinear
 
     def forward(self, x):
-        # y_hat = self.bn(x)
+        y_hat = self.bn(x)
         y_hat = self.do(self.conv(x))
         if self.nonlinear:
             y_hat = F.relu(y_hat)
@@ -173,29 +162,160 @@ class ConvBlock3D(nn.Module):
         return y_hat
 
 
-class ConvMapping(nn.Module):
-    def __init__(self, attention_type: str, skip=True):
+def conv3x3x3(in_planes, out_planes, stride=1):
+    return nn.Conv3d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        padding=1,
+        bias=False,
+        groups=4,
+    )
+
+
+def conv1x1x1(in_planes, out_planes, stride=1):
+    return nn.Conv3d(
+        in_planes, out_planes, kernel_size=1, stride=stride, bias=False, groups=4,
+    )
+
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_planes, planes, stride=1, downsample=None):
         super().__init__()
-        self.attention_type = attention_type
-        groups = 4 if attention_type == "spatial" else 6
-        first_kernel_dim = 6 if attention_type == "spatial" else 4
-        self.skip = skip
+
+        self.conv1 = conv3x3x3(in_planes, planes, stride)
+        self.bn1 = nn.BatchNorm3d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3x3(planes, planes)
+        self.bn2 = nn.BatchNorm3d(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+class ConvMapping(nn.Module):
+    def __init__(self, attention_type: str):
+        super().__init__()
+        self.attention_type = "temporal"  # FIXME, should change it in the input
+        # groups = 4 if attention_type == "spatial" else 6
+        groups = 4
         self.net = nn.Sequential(
             # ConvBlock2D(6, 6, 0.15, False)
             # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
-            ConvBlock3D(groups, groups * 2, 2, 2, 0.15, True),
-            ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.15, True),
+            # ConvBlock3D(groups, groups * 2, 1, 3, 0.05),
+            # BasicBlock(groups, groups),
+            # ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.05),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.05, False),
             # ConvBlock3D(groups * 4, groups * 8, 2, 5, 0.15, True),
             # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
             # ConvBlock3D(groups * 8, groups * 4, 2, 5, 0.15, True),
-            ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.15, True),
-            ConvBlock3D(groups * 2, groups, 2, 2, 0.15, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.05, False),
+            # BasicBlock(groups, groups),
+            # ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.05),
+            # ConvBlock3D(groups * 2, groups, 1, 3, 0.05),
             # ConvBlock3D(6, 6, 5, 0.15, False),
             # ConvBlock3D(6, 6, 3, 0.15, False),
         )
+        print(self.net)
+        """
+        self.net = nn.Sequential(
+            # ConvBlock2D(6, 6, 0.15, False)
+            # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
+            ConvBlock2D(groups, groups * 2, 3, 0.05, True),
+            ConvBlock2D(groups * 2, groups * 4, 3, 0.05, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 5, 0.15, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 5, 0.15, True),
+            ConvBlock2D(groups * 4, groups * 2, 3, 0.05, True),
+            ConvBlock2D(groups * 2, groups, 3, 0.05, True),
+            # ConvBlock3D(6, 6, 5, 0.15, False),
+            # ConvBlock3D(6, 6, 3, 0.15, False),
+        )
+        """
+
+    def forward(self, x):
+        if self.attention_type == "spatial":
+            x_per = x.permute(0, 4, 1, 2, 3)
+        else:
+            x_per = x.permute(0, 4, 1, 2, 3)
+        y_hat = self.net(x_per)
+        if self.attention_type == "spatial":
+            y_hat_per = y_hat.permute(0, 2, 3, 4, 1)
+        else:
+            y_hat_per = y_hat.permute(0, 2, 3, 4, 1)
+        return y_hat_per  # + old_x if self.skip else y_hat
+
+
+'''
+class ConvAttention(nn.Module):
+    def __init__(self, attention_type: str, skip=True):
+        super().__init__()
+        self.attention_type = (
+            "temporal"  # FIXME, should change it in the input
+        )
+        # groups = 4 if attention_type == "spatial" else 6
+        groups = 4
+        first_kernel_dim = 6 if attention_type == "spatial" else 4
+        self.skip = skip
+        self.net = nn.Sequential(
+            # ConvBlock2D(6, 6, 0.15, False)
+            # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
+            ConvBlock3D(groups, groups * 2, 1, 1, 0.05, True),
+            ConvBlock3D(groups * 2, groups * 4, 2, 3, 0.05, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 5, 0.15, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 5, 0.15, True),
+            ConvBlock3D(groups * 4, groups * 2, 2, 3, 0.05, True),
+            ConvBlock3D(groups * 2, groups, 1, 1, 0.05, True),
+            # ConvBlock3D(6, 6, 5, 0.15, False),
+            # ConvBlock3D(6, 6, 3, 0.15, False),
+        )
+        """
+        self.net = nn.Sequential(
+            # ConvBlock2D(6, 6, 0.15, False)
+            # ConvBlock3D(groups, groups, 2, 3, 0.10, True),
+            ConvBlock2D(groups, groups * 2, 3, 0.05, True),
+            ConvBlock2D(groups * 2, groups * 4, 3, 0.05, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 5, 0.15, True),
+            # ConvBlock3D(groups * 4, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 16, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 16, groups * 8, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 3, 0.10, True),
+            # ConvBlock3D(groups * 8, groups * 4, 2, 5, 0.15, True),
+            ConvBlock2D(groups * 4, groups * 2, 3, 0.05, True),
+            ConvBlock2D(groups * 2, groups, 3, 0.05, True),
+            # ConvBlock3D(6, 6, 5, 0.15, False),
+            # ConvBlock3D(6, 6, 3, 0.15, False),
+        )
+        """
 
     def resape_input(self, x):
         pass
@@ -203,13 +323,13 @@ class ConvMapping(nn.Module):
     def forward(self, x):
         old_x = x
         if self.attention_type == "spatial":
-            x = x.permute(0, 4, 1, 2, 3)
+            x_per = x.permute(0, 4, 1, 2, 3)
         else:
-            x = x.permute(0, 1, 4, 2, 3)
-
-        x = self.net(x)
+            x_per = x.permute(0, 4, 1, 2, 3)
+        y_hat = self.net(x_per)
         if self.attention_type == "spatial":
-            y_hat = x.permute(0, 2, 3, 4, 1)
+            y_hat_per = y_hat.permute(0, 2, 3, 4, 1)
         else:
-            y_hat = x.permute(0, 1, 3, 4, 2)
-        return y_hat  # + old_x if self.skip else y_hat
+            y_hat_per = y_hat.permute(0, 2, 3, 4, 1)
+        return y_hat_per  # + old_x if self.skip else y_hat
+'''

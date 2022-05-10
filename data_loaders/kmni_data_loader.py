@@ -17,14 +17,14 @@ class DataLoader:
         folder: str,
         device,
         *,
-        time_steps: int = 4,
+        time_steps: int = 6,
         crop=None,
         shuffle: bool = True,
         merge_nodes: bool = False,
         power: float = 1,
         max_out: float = 0.01
     ):
-
+    self.time_steps = time_steps
         self.power = t.tensor(power)
         with open(os.path.join(folder, "../metadata.json")) as f:
             metadata = json.load(f)
@@ -91,7 +91,7 @@ class DataLoader:
         )
         """
         split_segments = t.stack(
-            tuple(t.stack((s[:4], s[4:])) for s in segments)
+            tuple(t.stack((s[:self.time_steps], s[self.time_steps:])) for s in segments)
         ).transpose(0, 1)
         if self.crop is not None:
             split_segments = split_segments[:, :, :, :, : self.crop, : self.crop]

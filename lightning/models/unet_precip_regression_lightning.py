@@ -148,7 +148,6 @@ class UNetDS_Attention(Precip_regression_base):
         self.bilinear = hparams.bilinear
         reduction_ratio = hparams.reduction_ratio
         kernels_per_layer = hparams.kernels_per_layer
-
         self.inc = DoubleConvDS(
             self.n_channels, 64, kernels_per_layer=kernels_per_layer
         )
@@ -194,6 +193,7 @@ class UNetDS_Attention(Precip_regression_base):
         return logits
 
     def forward(self, xs):
+        xs = xs.squeeze()
         if len(xs.shape) > 4:
             """
             x = xs.permute(0, 4, 3, 1, 2)
@@ -204,26 +204,41 @@ class UNetDS_Attention(Precip_regression_base):
             logits = self.single_forward(x).view(b, v, time, w, h).permute(0, 3, 4, 2, 1) # permute(2, 3, 1, 0)
             """
             xp = xs.permute(4, 0, 3, 1, 2)
-            x_slices = ((xp[0], xp[1]), (xp[2], xp[3]), (xp[4], xp[5]))
-            x = t.cat(tuple(t.cat(slice, dim=2) for slice in x_slices), dim=-1)
-            pred = self.single_forward(x)
-            vslices = tuple(pred[:, :, :, i : i + 80] for i in range(3))
-            pred_slices = tuple(
-                (vslice[:, :, 0:80], vslice[:, :, 80:160]) for vslice in vslices
-            )
-            logits = t.stack(
-                (
-                    pred_slices[0][0],
-                    pred_slices[0][1],
-                    pred_slices[1][0],
-                    pred_slices[1][1],
-                    pred_slices[2][0],
-                    pred_slices[2][1],
+            process_type = "single"
+            if process_type == "merge":
+                x_slices = ((xp[0], xp[1]), (xp[2], xp[3]), (xp[4], xp[5]))
+                x = t.cat(tuple(t.cat(slice, dim=2) for slice in x_slices), dim=-1)
+                pred = self.single_forward(x)
+                vslices = tuple(pred[:, :, :, i : i + 80] for i in range(3))
+                pred_slices = tuple(
+                    (vslice[:, :, 0:80], vslice[:, :, 80:160]) for vslice in vslices
                 )
-            ).permute(1, 3, 4, 2, 0)
+                logits = t.stack(
+                    (
+                        pred_slices[0][0],
+                        pred_slices[0][1],
+                        pred_slices[1][0],
+                        pred_slices[1][1],
+                        pred_slices[2][0],
+                        pred_slices[2][1],
+                    )
+                ).permute(1, 3, 4, 2, 0)
+            elif process_type == "single":
+                logits = t.stack(tuple(self.single_forward(x) for x in xp)).permute(
+                    1, 3, 4, 2, 0
+                )
+                """
+                acc = []
+                for x in xp:
+                    print(f"{x.shape=}")
+                    acc.append(self.single_forward(x))
+                logits = t.stack(acc).permute(1, 3, 4, 2, 0)
+                """
 
         else:
-            logits = self.single_forward(xs.permute(0, 3, 1, 2))
+            # xp = xs.permute(0, 3, 1, 2)
+            # ipdb.s
+            logits = self.single_forward(xs)
         """
         preds = tuple(
             self.single_forward(xs[:, :, :, :, i].permute(0, 3, 1, 2)).permute(

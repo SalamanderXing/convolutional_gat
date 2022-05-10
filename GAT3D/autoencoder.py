@@ -1,180 +1,116 @@
 import torch as t
 from torch import nn
-import torch.nn.functional as F
-import ipdb
-
-## Encoder
-def create_encoder_single_conv(in_chs, out_chs, kernel):
-    assert kernel % 2 == 1
-    return nn.Sequential(
-        nn.Conv2d(in_chs, out_chs, kernel_size=kernel, padding=(kernel - 1) // 2),
-        nn.BatchNorm2d(out_chs),
-        nn.ReLU(inplace=True),
-    )
-
-
-class EncoderInceptionModuleSignle(nn.Module):
-    def __init__(self, channels):
-        assert channels % 2 == 0
-        super().__init__()
-        # put bottle-neck layers before convolution
-        bn_ch = channels // 2
-        self.bottleneck = create_encoder_single_conv(channels, bn_ch, 1)
-        # bn -> Conv1, 3, 5
-        self.conv1 = create_encoder_single_conv(bn_ch, channels, 1)
-        self.conv3 = create_encoder_single_conv(bn_ch, channels, 3)
-        self.conv5 = create_encoder_single_conv(bn_ch, channels, 5)
-        self.conv7 = create_encoder_single_conv(bn_ch, channels, 7)
-        # pool-proj(no-bottle neck)
-        self.pool3 = nn.MaxPool2d(3, stride=1, padding=1)
-        self.pool5 = nn.MaxPool2d(5, stride=1, padding=2)
-
-    def forward(self, x):
-        # Original inception is concatenation, but use simple addition instead
-        bn = self.bottleneck(x)
-        out = (
-            self.conv1(bn)
-            + self.conv3(bn)
-            + self.conv5(bn)
-            + self.conv7(bn)
-            + self.pool3(x)
-            + self.pool5(x)
-        )
-        return out
-
-
-class EncoderModule(nn.Module):
-    def __init__(self, chs, repeat_num, use_inception):
-        super().__init__()
-        if use_inception:
-            layers = [EncoderInceptionModuleSignle(chs) for i in range(repeat_num)]
-        else:
-            layers = [
-                create_encoder_single_conv(chs, chs, 3) for i in range(repeat_num)
-            ]
-        self.convs = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.convs(x)
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels=1, use_inception=True, repeat_per_module=1):
+    def __init__(
+        self,
+        num_input_channels: int = 4,
+        base_channel_size: int = 4,
+        latent_dim: int = 400,
+        act_fn=nn.GELU,
+    ):
+        """
+        Inputs:
+            - num_input_channels : Number of input channels of the image. For CIFAR, this parameter is 3
+            - base_channel_size : Number of channels we use in the first convolutional layers. Deeper layers might use a duplicate of it.
+            - latent_dim : Dimensionality of latent representation z
+            - act_fn : Activation function used throughout the encoder network
+        """
         super().__init__()
-        # stages
-        self.upch1 = nn.Conv2d(in_channels, 32, kernel_size=1)
-        self.stage1 = EncoderModule(32, repeat_per_module, use_inception)
-        self.upch2 = self._create_downsampling_module(32, 4)
-        self.stage2 = EncoderModule(64, repeat_per_module, use_inception)
-        self.upch3 = self._create_downsampling_module(64, 4)
-        self.stage3 = EncoderModule(128, repeat_per_module, use_inception)
-        self.upch4 = self._create_downsampling_module(128, 2)
-        self.stage4 = EncoderModule(256, repeat_per_module, use_inception)
-
-    def _create_downsampling_module(self, input_channels, pooling_kenel):
-        return nn.Sequential(
-            nn.AvgPool2d(pooling_kenel),
-            nn.Conv2d(input_channels, input_channels * 2, kernel_size=1),
-            nn.BatchNorm2d(input_channels * 2),
-            nn.ReLU(inplace=True),
+        c_hid = base_channel_size
+        self.net = nn.Sequential(
+            nn.Conv2d(
+                num_input_channels, c_hid, kernel_size=3, padding=1, stride=2
+            ),  # 32x32 => 16x16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.Conv2d(
+                c_hid, 2 * c_hid, kernel_size=3, padding=1, stride=2
+            ),  # 16x16 => 8x8
+            act_fn(),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.Conv2d(
+                2 * c_hid, 2 * c_hid, kernel_size=3, padding=1, stride=2
+            ),  # 8x8 => 4x4
+            act_fn(),
+            nn.Flatten(),  # Image grid to single feature vector
+            nn.Linear(800, latent_dim),
         )
 
     def forward(self, x):
-        out = self.stage1(self.upch1(x))
-        out = self.stage2(self.upch2(out))
-        out = self.stage3(self.upch3(out))
-        out = self.stage4(self.upch4(out))
-        out = F.avg_pool2d(out, 2)  # Global Average pooling
-        return out  # out.view(-1, 256)
-
-    ## Decoder
-
-
-def create_decoder_single_conv(in_chs, out_chs, kernel):
-    assert kernel % 2 == 1
-    return nn.Sequential(
-        nn.ConvTranspose2d(
-            in_chs, out_chs, kernel_size=kernel, padding=(kernel - 1) // 2
-        ),
-        nn.BatchNorm2d(out_chs),
-        nn.ReLU(inplace=True),
-    )
-
-
-class DecoderInceptionModuleSingle(nn.Module):
-    def __init__(self, channels):
-        assert channels % 2 == 0
-        super().__init__()
-        # put bottle-neck layers before convolution
-        bn_ch = channels // 4
-        self.bottleneck = create_decoder_single_conv(channels, bn_ch, 1)
-        # bn -> Conv1, 3, 5
-        self.conv1 = create_decoder_single_conv(bn_ch, channels, 1)
-        self.conv3 = create_decoder_single_conv(bn_ch, channels, 3)
-        self.conv5 = create_decoder_single_conv(bn_ch, channels, 5)
-        self.conv7 = create_decoder_single_conv(bn_ch, channels, 7)
-        # pool-proj(no-bottle neck)
-        self.pool3 = nn.MaxPool2d(3, stride=1, padding=1)
-        self.pool5 = nn.MaxPool2d(5, stride=1, padding=2)
-
-    def forward(self, x):
-        # Original inception is concatenation, but use simple addition instead
-        bn = self.bottleneck(x)
-        out = (
-            self.conv1(bn)
-            + self.conv3(bn)
-            + self.conv5(bn)
-            + self.conv7(bn)
-            + self.pool3(x)
-            + self.pool5(x)
-        )
-        return out
-
-
-class DecoderModule(nn.Module):
-    def __init__(self, chs, repeat_num, use_inception):
-        super().__init__()
-        if use_inception:
-            layers = [DecoderInceptionModuleSingle(chs) for i in range(repeat_num)]
-        else:
-            layers = [
-                create_decoder_single_conv(chs, chs, 3) for i in range(repeat_num)
-            ]
-        self.convs = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.convs(x)
+        return self.net(x)
 
 
 class Decoder(nn.Module):
-    def __init__(self, out_channels=6, use_inception=True, repeat_per_module=1):
+    def __init__(
+        self,
+        num_input_channels: int = 4,
+        base_channel_size: int = 4,
+        latent_dim: int = 400,
+        act_fn=nn.GELU,
+    ):
+        """
+        Inputs:
+            - num_input_channels : Number of channels of the image to reconstruct. For CIFAR, this parameter is 3
+            - base_channel_size : Number of channels we use in the last convolutional layers. Early layers might use a duplicate of it.
+            - latent_dim : Dimensionality of latent representation z
+            - act_fn : Activation function used throughout the decoder network
+        """
         super().__init__()
-        # stages
-        self.stage1 = DecoderModule(256, repeat_per_module, use_inception)
-        self.downch1 = self._create_upsampling_module(256, 2)
-        self.stage2 = DecoderModule(128, repeat_per_module, use_inception)
-        self.downch2 = self._create_upsampling_module(128, 4)
-        self.stage3 = DecoderModule(64, repeat_per_module, use_inception)
-        self.downch3 = self._create_upsampling_module(64, 4)
-        self.stage4 = DecoderModule(32, repeat_per_module, use_inception)
-        self.last = nn.ConvTranspose2d(32, out_channels, kernel_size=1)
-
-    def _create_upsampling_module(self, input_channels, pooling_kenel):
-        return nn.Sequential(
+        c_hid = base_channel_size
+        self.linear = nn.Sequential(nn.Linear(latent_dim, 2 * 16 * c_hid), act_fn())
+        self.net = nn.Sequential(
             nn.ConvTranspose2d(
-                input_channels,
-                input_channels // 2,
-                kernel_size=pooling_kenel,
-                stride=pooling_kenel,
-            ),
-            nn.BatchNorm2d(input_channels // 2),
-            nn.ReLU(inplace=True),
+                2 * c_hid,
+                2 * c_hid,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 4x4 => 8x8
+            act_fn(),
+            nn.Conv2d(2 * c_hid, 2 * c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(
+                2 * c_hid, c_hid, kernel_size=3, output_padding=1, padding=1, stride=2,
+            ),  # 8x8 => 16x16
+            act_fn(),
+            nn.Conv2d(c_hid, c_hid, kernel_size=3, padding=1),
+            act_fn(),
+            nn.ConvTranspose2d(
+                c_hid,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 16x16 => 32x32
+            act_fn(),
+            nn.ConvTranspose2d(
+                c_hid,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 32x32 => 64x64
+            act_fn(),
+            nn.ConvTranspose2d(
+                c_hid,
+                num_input_channels,
+                kernel_size=3,
+                output_padding=1,
+                padding=1,
+                stride=2,
+            ),  # 16x16 => 32x32
+            nn.Tanh(),  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
         )
 
     def forward(self, x):
-        out = F.upsample(x.reshape(x.shape[0], -1, 1, 1), scale_factor=8)
-        out = self.downch1(self.stage1(out))
-        out = self.downch2(self.stage2(out))
-        out = self.downch3(self.stage3(out))
-        out = self.stage4(out)
-        return t.sigmoid(self.last(out))
+        x = self.linear(x)
+        x = x.reshape(x.shape[0], -1, 4, 4)
+        x = self.net(x)[:, :, :80, :80]
+        return x

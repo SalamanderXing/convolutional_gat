@@ -20,8 +20,8 @@ class UNet_base(pl.LightningModule):
             default="UNet",
             choices=["UNet", "UNetDS", "UNet_Attention", "UNetDS_Attention"],
         )
-        parser.add_argument("--n_channels", type=int, default=4)
-        parser.add_argument("--n_classes", type=int, default=4)
+        parser.add_argument("--n_channels", type=int, default=9)
+        parser.add_argument("--n_classes", type=int, default=9)
         parser.add_argument("--kernels_per_layer", type=int, default=1)
         parser.add_argument("--bilinear", type=bool, default=True)
         parser.add_argument("--reduction_ratio", type=int, default=16)
@@ -57,7 +57,9 @@ class UNet_base(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
-        loss = self.loss_func(y_pred.squeeze(), y.squeeze())
+        loss = self.loss_func(
+            y_pred.squeeze(), y.squeeze()
+        )  # - self.loss_func(y_pred.squeeze(), x.squeeze())
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
@@ -78,7 +80,11 @@ class UNet_base(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
-        val_loss = self.loss_func(y_pred.squeeze(), y)
+        if len(y.shape) > len(y_pred.shape):
+            y = y.squeeze(0)
+        if y_pred.shape != y.shape:
+            ipdb.set_trace()
+        val_loss = self.loss_func(y_pred, y)
         # val_loss += loss.item()
         return {"val_loss": val_loss}
 

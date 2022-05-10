@@ -21,57 +21,12 @@ from .utils.misc import (
 from .utils.metrics import get_metrics
 from .utils.incremental_tuple import IncrementalTouple
 
-# from .utils import thresholded_mask_metrics, update_history
 
-# todo: add that it saves the best performing model
-
-
-def test(model: nn.Module, device, loader, flag="val"):
-    # binarize_thresh = t.mean(val_test_loader.normalizing_mean)
-    model.eval()  # We put the model in eval mode: this disables dropout for example (which we didn't use)
-    with t.no_grad():  # Disables the autograd engine
-        running_loss = t.tensor(0.0)
-        running_acc = IncrementalTouple()
-        running_prec = IncrementalTouple()
-        running_recall = IncrementalTouple()
-        running_denorm_mse = t.tensor(0.0)
-        total_length = 0
-        # mean = val_test_loader.normalizing_mean
-        # var = val_test_loader.normalizing_var
-        # threshold = (0.5 - t.mean(val_test_loader.normalizing_mean)) / t.mean(
-        #    val_test_loader.normalizing_var
-        # )
-        for i, (x, y) in tqdm(enumerate(loader)):
-            if len(x) > 1:
-                y_hat = model(x)
-                y = t.pow(y, 1 / loader.power)
-                y_hat = t.pow(y_hat, 1 / loader.power)
-                running_loss += (
-                    t.sum((y - y_hat) ** 2) / t.prod(t.tensor(y.shape[1:]).to(device))
-                ).cpu()
-
-                unique = t.unique(y)
-                threshold = unique[int(len(unique) * (1 / 2))].cpu()
-                total_length += len(x)
-                acc, prec, rec = get_metrics(
-                    y.detach(), y_hat.detach(), threshold,  # second_min  # 0.04011
-                )
-                running_acc += acc
-                running_prec += prec
-                running_recall += rec
-                running_denorm_mse += (
-                    t.sum(((y - y_hat) * loader.normalizing_max) ** 2)
-                    / t.prod(t.tensor(y.shape[1:]).to(device))
-                ).cpu()
-
-    model.train()
-    return {
-        "val_loss": (running_loss / total_length).item(),
-        "val_acc": running_acc.item(),
-        "val_prec": running_prec.item(),
-        "val_rec": running_recall.item(),
-        "val_denorm_mse": (running_denorm_mse / total_length).item(),
-    }
+def nmser(y, y_pred):
+    y_pred = y_pred.flatten()
+    y = y.flatten()
+    diff = y - y_pred
+    return diff.var() / y.var()
 
 
 def train_single_epoch(

@@ -1,20 +1,12 @@
 {
-    "local_temporal_conv_small": {
-        "val_loss": 0.05619097128510475,
-        "val_acc": 0.8815321326255798,
-        "val_prec": 0.22331905364990234,
-        "val_rec": 0.1865631490945816,
-        "val_denorm_mse": 1648862.625,
-        "forward_pass_time_s": 0.004093306541442871,
-        "n_parameters": 8480
-    },
-    "local_baseline": {
-        "val_loss": 0.09503127634525299,
-        "val_acc": 0.900748074054718,
-        "val_prec": 0.1454770565032959,
-        "val_rec": 0.04618372395634651,
-        "val_denorm_mse": 2788585.0,
-        "forward_pass_time_s": 0.00295526385307312,
-        "n_parameters": 81945672
+    "local_convgat3d_large": {
+        "MSE": 96.80868530273438,
+        "Accuracy": 0.42568787932395935,
+        "Precision": 0.42367225885391235,
+        "Recall": 0.9923244118690491,
+        "f1": 0.5938153862953186,
+        "NMSE": 3300143.5,
+        "Forward Pass Time (s)": 0.04151867866516113,
+        "N. Parameters": 36941
     }
 }
